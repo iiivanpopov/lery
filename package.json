@@ -1,0 +1,39 @@
+{
+	"name": "lightquery",
+	"version": "0.1.0",
+	"description": "Lightweight SWR analog",
+	"main": "dist/index.js",
+	"module": "dist/index.mjs",
+	"types": "dist/index.d.ts",
+	"files": [
+		"dist"
+	],
+	"type": "module",
+	"private": false,
+	"license": "MIT",
+	"author": {
+		"name": "Ivan Popov",
+		"email": "iiivanpopov999@gmail.com"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/iiivanpopov/lightquery.git"
+	},
+	"homepage": "https://github.com/iiivanpopov/lightquery#readme",
+	"peerDependencies": {
+		"typescript": "^5"
+	},
+	"devDependencies": {
+		"@types/bun": "latest"
+	},
+	"scripts": {
+		"build": "bun build.ts && tsc -p tsconfig.types.json"
+	},
+	"keywords": [
+		"typescript",
+		"cache",
+		"query",
+		"fetch",
+		"lightweight"
+	]
+}
