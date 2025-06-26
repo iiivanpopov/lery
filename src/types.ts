@@ -1,14 +1,22 @@
-/** Request state */
-export type QueryState<T> = {
+export const Status = {
+	IDLE: 'IDLE',
+	LOADING: 'LOADING',
+	ERROR: 'ERROR',
+	REFETCHING: 'REFETCHING',
+	SUCCESS: 'SUCCESS',
+} as const
+export type Status = (typeof Status)[keyof typeof Status]
+
+export type QueryState<T = unknown> = {
 	data: T | null
 	error: unknown | null
+	status: Status
+	isIdle: boolean
 	isLoading: boolean
+	isFetching: boolean
+	isSuccess: boolean
+	isError: boolean
+	isFetched: boolean
 }
 
-/** Subscriber to changes */
 export type Subscriber<T> = (state: QueryState<T>) => void
-
-/** Cached entry */
-export type CacheEntry<T> = QueryState<T> & {
-	subscribers: Set<Subscriber<T>>
-}

@@ -1,3 +1,3 @@
 export { Lery } from './Lery'
 
-export type { CacheEntry, QueryState, Subscriber } from './types'
+export type { QueryState, Status, Subscriber } from './types'
