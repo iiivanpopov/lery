@@ -1,6 +1,6 @@
-# LightQuery
+# Lery
 
-LightQuery is a lightweight TypeScript library for managing cached asynchronous data queries, inspired by SWR. It provides a simple API for fetching, caching, and subscribing to data updates, making it ideal for state management in modern web applications.
+Lery is a lightweight TypeScript library for managing cached asynchronous data queries, inspired by SWR. It provides a simple API for fetching, caching, and subscribing to data updates, making it ideal for state management in modern web applications.
 
 ## Features
 
@@ -12,21 +12,21 @@ LightQuery is a lightweight TypeScript library for managing cached asynchronous 
 ## Installation
 
 ```sh
-npm install lightquery
+npm install lery
 ```
 
 or with Bun:
 
 ```sh
-bun add lightquery
+bun add lery
 ```
 
 ## Usage
 
 ```typescript
-import { LightQuery } from 'lightquery'
+import { Lery } from 'lery'
 
-const query = new LightQuery()
+const query = new Lery()
 
 // Subscribe to a key
 const unsubscribe = query.subscribe('user', state => {

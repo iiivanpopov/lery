@@ -1,5 +1,5 @@
 {
-	"name": "lightquery",
+	"name": "lery",
 	"version": "0.1.0",
 	"description": "Lightweight SWR analog",
 	"main": "dist/cjs/index.js",
@@ -24,9 +24,9 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/iiivanpopov/lightquery.git"
+		"url": "https://github.com/iiivanpopov/lery.git"
 	},
-	"homepage": "https://github.com/iiivanpopov/lightquery#readme",
+	"homepage": "https://github.com/iiivanpopov/lery#readme",
 	"peerDependencies": {
 		"typescript": "^5"
 	},

@@ -1,6 +1,6 @@
 import type { CacheEntry, QueryState, Subscriber } from './types'
 
-export class LightQuery {
+export class Lery {
 	private cache: Map<string, CacheEntry<unknown>>
 
 	constructor() {

@@ -1,3 +1,3 @@
-export { LightQuery } from './LightQuery'
+export { Lery } from './Lery'
 
 export type { CacheEntry, QueryState, Subscriber } from './types'
