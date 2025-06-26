@@ -1,67 +1,127 @@
 # Lery
 
-Lery is a lightweight TypeScript library for managing cached asynchronous data queries, inspired by SWR. It provides a simple API for fetching, caching, and subscribing to data updates, making it ideal for state management in modern web applications.
+**Lery** is a tiny, strongly-typed async state manager for TypeScript.
+Inspired by TanStack Query, but implemented from scratch with **zero dependencies** and a minimal API.
 
-## Features
+---
 
-- **Lightweight**: Minimal dependencies and small bundle size.
-- **TypeScript-first**: Fully typed API for safety and autocompletion.
-- **Cache & Subscribe**: Efficiently cache data and subscribe to updates for specific keys.
-- **Error & Loading States**: Built-in support for error and loading state management.
+## ✨ Features
 
-## Installation
+- 🔁 Cache data by key
+- 🔔 Subscribe to updates
+- 📦 Track loading status (`IDLE`, `LOADING`, `SUCCESS`, `ERROR`, `REFETCHING`)
+- ⚡️ Simple API: `fetch`, `subscribe`, `getState`
+- 🔒 Fully type-safe with generic support
 
-```sh
-npm install lery
-```
+---
 
-or with Bun:
+## 📦 Installation
 
-```sh
+```bash
 bun add lery
+# or
+npm install lery
+# or
+pnpm add lery
 ```
 
-## Usage
+---
 
-```typescript
+## 🚀 Quick Start
+
+```ts
 import { Lery } from 'lery'
 
-const query = new Lery()
+type API = {
+	user: { id: string; name: string }
+	count: number
+}
 
-// Subscribe to a key
-const unsubscribe = query.subscribe('user', state => {
-	console.log(state.data, state.isLoading, state.error)
+const lery = new Lery<API>()
+
+// Subscribe to state changes
+const unsubscribe = lery.subscribe('user', state => {
+	if (state.isLoading) console.log('Loading...')
+	if (state.isSuccess) console.log('User:', state.data)
 })
 
-// Fetch data
-query.fetch('user', () => fetch('/api/user').then(res => res.json()))
-
-// Get current state without subscribing
-const state = query.getState('user')
-
-// Unsubscribe when done
-unsubscribe()
+// Fetch user data
+lery.fetch('user', async () => {
+	const res = await fetch('/api/user')
+	return res.json()
+})
 ```
 
-## API
+---
 
-### `subscribe<T>(key: string, callback: (state: QueryState<T>) => void): () => void`
+## 🧩 API
 
-Subscribe to updates for a specific cache key. Returns an unsubscribe function.
+### `new Lery<TQueries>()`
 
-### `fetch<T>(key: string, fetcher: () => Promise<T>): void`
+Creates a new instance of the Lery store.
+`TQueries` maps keys to their corresponding response types.
 
-Fetch data using the provided async function and update the cache.
+---
 
-### `getState<T>(key: string): QueryState<T>`
+### `fetch<K>(key: K, fetcher: () => Promise<TQueries[K]>)`
 
-Get the current state for a cache key (data, error, isLoading).
+Triggers an async fetch and updates state for the given key.
 
-## Types
+---
 
-- `QueryState<T>`: `{ data: T | null, error: unknown | null, isLoading: boolean }`
-- `Subscriber<T>`: `(state: QueryState<T>) => void`
+### `subscribe<K>(key: K, callback: (state: QueryState<TQueries[K]>) => void): () => void`
 
-## License
+Subscribes to state changes for a given key.
+The callback is called immediately with the current state and again whenever it updates.
+Returns an `unsubscribe` function.
 
-MIT
+---
+
+### `getState<K>(key: K): QueryState<TQueries[K]>`
+
+Returns the current state for a given key without subscribing.
+
+---
+
+## 🧠 Types
+
+```ts
+type QueryState<T> = {
+	data: T | null
+	error: unknown | null
+	status: 'IDLE' | 'LOADING' | 'SUCCESS' | 'ERROR' | 'REFETCHING'
+	isIdle: boolean
+	isLoading: boolean
+	isFetching: boolean
+	isSuccess: boolean
+	isError: boolean
+	isFetched: boolean
+}
+```
+
+---
+
+## 🧪 Testing
+
+Using [Bun](https://bun.sh/):
+
+```bash
+bun test
+```
+
+---
+
+## 📁 Project Structure
+
+```
+src/
+├── Lery.ts         // Public API and query manager
+├── QueryEntry.ts   // Internal cache unit per key
+├── types.ts        // Status enums and type definitions
+```
+
+---
+
+## 📜 License
+
+MIT — free to use, modify, and distribute.
