@@ -25,9 +25,9 @@ export class Lery<TQueries extends Record<string, any> = any> {
 		}
 	}
 
-	fetch<K extends keyof TQueries>(
+	fetch<K extends keyof TQueries, T extends TQueries[K]>(
 		key: K,
-		fetcher: () => Promise<TQueries[K]>
+		fetcher: () => Promise<T>
 	): void {
 		let entry = this.cache.get(key) as QueryEntry<TQueries[K]> | undefined
 		if (!entry) {
