@@ -37,7 +37,8 @@
 		"build:esm": "bun build ./src/index.ts --outdir ./dist/esm --minify --target bun --format esm --sourcemap=none",
 		"build:cjs": "bun build ./src/index.ts --outdir ./dist/cjs --minify --target bun --format cjs --sourcemap=none",
 		"build:types": "tsc -p tsconfig.types.json",
-		"build": "bun run build:esm && bun run build:cjs && bun run build:types"
+		"build": "bun run build:esm && bun run build:cjs && bun run build:types",
+		"prepublishOnly": "bun run build"
 	},
 	"keywords": [
 		"typescript",
