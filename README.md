@@ -48,7 +48,7 @@ const unsubscribe = lery.subscribe('user', state => {
 // Fetch user data
 lery.fetch('user', async () => {
 	const res = await fetch('/api/user')
-	return res.json()
+	return res.json() as { id: string; name: string } // You should use your validator here
 })
 ```
 
