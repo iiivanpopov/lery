@@ -7,6 +7,16 @@ export class QueryEntry<T> {
 	public isFetched = false
 	public subscribers = new Set<Subscriber<T>>()
 
+	private lastFetchTime = 0
+	private currentPromise: Promise<T> | null = null
+
+	constructor(private dedupingTime: number = 5000) {}
+
+	private notify() {
+		const state = this.getState()
+		for (const cb of this.subscribers) cb(state)
+	}
+
 	begin() {
 		this.status = this.isFetched ? Status.REFETCHING : Status.LOADING
 		this.notify()
@@ -43,10 +53,27 @@ export class QueryEntry<T> {
 		}
 	}
 
-	private notify() {
-		const state = this.getState()
-		for (const cb of this.subscribers) {
-			cb(state)
-		}
+	fetch(fetcher: () => Promise<T>): void {
+		const now = Date.now()
+
+		const isFetchOngoing =
+			this.currentPromise && this.lastFetchTime + this.dedupingTime > now
+		if (isFetchOngoing) return
+
+		this.begin()
+		this.lastFetchTime = now
+
+		this.currentPromise = fetcher()
+			.then(data => {
+				this.succeed(data)
+				return data
+			})
+			.catch(err => {
+				this.fail(err)
+				return err
+			})
+			.finally(() => {
+				this.currentPromise = null
+			})
 	}
 }

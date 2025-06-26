@@ -143,4 +143,30 @@ describe('Lery class', () => {
 
 		expect(states[states.length - 1].data).toBe('second')
 	})
+
+	it('11. fetch deduplicates requests within dedupingTime', async () => {
+		let callCount = 0
+		const fetcher = () => {
+			callCount++
+			return Promise.resolve('deduped')
+		}
+		const p1 = lery.fetch('key13', fetcher)
+		const p2 = lery.fetch('key13', fetcher)
+		expect(p1).toBe(p2)
+		await p1
+		expect(callCount).toBe(1)
+	})
+
+	it('12. fetch allows new request after dedupingTime', async () => {
+		let callCount = 0
+		const fetcher = () => {
+			callCount++
+			return Promise.resolve('after-dedup')
+		}
+		await lery.fetch('key14', fetcher)
+		const entry = (lery as any).cache.get('key14')
+		entry.lastFetchTime -= 6000
+		await lery.fetch('key14', fetcher)
+		expect(callCount).toBe(2)
+	})
 })
