@@ -2,9 +2,16 @@
 	"name": "lightquery",
 	"version": "0.1.0",
 	"description": "Lightweight SWR analog",
-	"main": "dist/index.js",
-	"module": "dist/index.mjs",
+	"main": "dist/cjs/index.js",
+	"module": "dist/esm/index.js",
 	"types": "dist/index.d.ts",
+	"exports": {
+		".": {
+			"require": "./dist/cjs/index.js",
+			"import": "./dist/esm/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
 	"files": [
 		"dist"
 	],
@@ -27,7 +34,10 @@
 		"@types/bun": "latest"
 	},
 	"scripts": {
-		"build": "bun build.ts && tsc -p tsconfig.types.json"
+		"build:esm": "bun build ./src/index.ts --outdir ./dist/esm --minify --target bun --format esm --sourcemap=none",
+		"build:cjs": "bun build ./src/index.ts --outdir ./dist/cjs --minify --target bun --format cjs --sourcemap=none",
+		"build:types": "tsc -p tsconfig.types.json",
+		"build": "bun run build:esm && bun run build:cjs && bun run build:types"
 	},
 	"keywords": [
 		"typescript",
