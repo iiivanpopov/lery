@@ -3,6 +3,7 @@ import {
 	type QueryFetchConfig,
 	type QueryMutateConfig,
 	type QueryState,
+	QueryType,
 	Status,
 	type Subscriber
 } from './types'
@@ -22,7 +23,7 @@ export class Query<T> {
 
 	private fetchId = 0
 
-	constructor(private config?: QueryConfig) {}
+	constructor(private config: QueryConfig) {}
 
 	private notify() {
 		const state = this.getState()
@@ -52,8 +53,9 @@ export class Query<T> {
 	}
 
 	begin() {
+		const isRefetching = this.isFetched && this.config.type === QueryType.FETCH
 		this.setState({
-			status: this.isFetched ? Status.REFETCHING : Status.LOADING
+			status: isRefetching ? Status.REFETCHING : Status.LOADING
 		})
 	}
 
@@ -75,13 +77,14 @@ export class Query<T> {
 		})
 	}
 
-	reset() {
+	reset(config: Pick<QueryMutateConfig<T>, 'options'> & { type: QueryType }) {
 		this.data = null
 		this.error = null
 		this.status = Status.IDLE
 		this.isFetched = false
 		this.currentPromise = null
 		this.lastFetchTime = 0
+		this.config = config
 		this.notify()
 	}
 

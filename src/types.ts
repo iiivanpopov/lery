@@ -118,8 +118,15 @@ export interface QueryOptions {
 	dedupingTime?: number
 }
 
+export const QueryType = {
+	MUTATE: 'MUTATE',
+	FETCH: 'FETCH'
+} as const
+export type QueryType = (typeof QueryType)[keyof typeof QueryType]
+
 export interface QueryConfig {
 	options?: QueryOptions
+	type: QueryType
 }
 
 // Query.Fetch

@@ -12,6 +12,7 @@ import type {
 	SubscribeConfig,
 	Unsubscribe
 } from './types'
+import { QueryType } from './types.ts'
 
 export class Lery<TDataMap extends DataMap> {
 	private cache = new Map<string, Query<any>>()
@@ -23,7 +24,8 @@ export class Lery<TDataMap extends DataMap> {
 	}
 
 	private retrieveEntry<TKey extends KeyOf<TDataMap>>(
-		key: CacheKey<TDataMap>
+		key: CacheKey<TDataMap>,
+		type: QueryType = QueryType.FETCH
 	): Query<CacheValue<TDataMap, TKey>> {
 		const cacheKey = this.serializeKey(key)
 
@@ -31,15 +33,14 @@ export class Lery<TDataMap extends DataMap> {
 		let entry = entryMap.get(cacheKey)
 
 		if (!entry) {
-			entry = new Query<CacheValue<TDataMap, TKey>>(this.config)
+			entry = new Query<CacheValue<TDataMap, TKey>>({
+				...this.config,
+				type
+			})
 			entryMap.set(cacheKey, entry)
 		}
 
 		return entry
-	}
-
-	private invalidate(key: CacheKey<TDataMap>) {
-		this.cache.delete(this.serializeKey(key))
 	}
 
 	subscribe<TKey extends KeyOf<TDataMap>>(
@@ -62,15 +63,15 @@ export class Lery<TDataMap extends DataMap> {
 	fetch<TKey extends KeyOf<TDataMap>>(
 		config: FetchConfig<TDataMap, TKey>
 	): Promise<CacheValue<TDataMap, TKey>> | null {
-		const entry = this.retrieveEntry<TKey>(config.queryKey)
+		const entry = this.retrieveEntry<TKey>(config.queryKey, QueryType.FETCH)
 		return entry.query(config)
 	}
 
 	mutate<TKey extends KeyOf<TDataMap>>(
 		config: MutateConfig<TDataMap, TKey>
 	): Promise<CacheValue<TDataMap, TKey>> | null {
-		const entry = this.retrieveEntry<TKey>(config.queryKey)
-		entry.reset()
+		const entry = this.retrieveEntry<TKey>(config.queryKey, QueryType.MUTATE)
+		entry.reset({ ...config, type: QueryType.MUTATE })
 		return entry.query(config)
 	}
 
