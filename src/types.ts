@@ -20,3 +20,20 @@ export type QueryState<T = unknown> = {
 }
 
 export type Subscriber<T> = (state: QueryState<T>) => void
+
+export interface LeryOptions {
+	dedupingTime?: number
+}
+
+export interface QueryEntryOptions {
+	dedupingTime?: number
+}
+
+export interface FetchOptions {
+	dedupingTime?: number
+}
+
+type PrimitiveKey = string | number
+
+export type KeyOf<T> = Extract<keyof T, PrimitiveKey>
+export type QueryKeyOf<T> = [KeyOf<T>, ...PrimitiveKey[]]

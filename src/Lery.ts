@@ -1,52 +1,65 @@
 import { QueryEntry } from './QueryEntry'
-import { type QueryState, type Subscriber } from './types'
+import type {
+	FetchOptions,
+	KeyOf,
+	LeryOptions,
+	QueryKeyOf,
+	QueryState,
+	Subscriber,
+} from './types'
 
-export class Lery<TQueries extends Record<string, any> = any> {
-	private cache = new Map<keyof TQueries, QueryEntry<any>>()
+export class Lery<TDataMap extends Record<string, unknown>> {
+	private cache = new Map<string, QueryEntry<any>>()
 
-	constructor(private dedupingTime: number = 5000) {}
+	constructor(private options?: LeryOptions) {}
 
-	subscribe<K extends keyof TQueries>(
-		key: K,
-		callback: Subscriber<TQueries[K]>
-	): () => void {
-		let entry = this.cache.get(key) as QueryEntry<TQueries[K]> | undefined
+	private serializeKey(key: QueryKeyOf<TDataMap>): string {
+		return key.join('|')
+	}
+
+	private retrieveEntry<TKey extends KeyOf<TDataMap>>(
+		key: QueryKeyOf<TDataMap>
+	): QueryEntry<TDataMap[TKey]> {
+		const cacheKey = this.serializeKey(key)
+		let entry = this.cache.get(cacheKey) as
+			| QueryEntry<TDataMap[TKey]>
+			| undefined
+
 		if (!entry) {
-			entry = new QueryEntry<TQueries[K]>(this.dedupingTime)
-			this.cache.set(key, entry)
+			entry = new QueryEntry<TDataMap[TKey]>(this.options)
+			this.cache.set(cacheKey, entry)
 		}
 
+		return entry
+	}
+
+	subscribe<TKey extends KeyOf<TDataMap>>(
+		key: QueryKeyOf<TDataMap>,
+		callback: Subscriber<TDataMap[TKey]>
+	): () => void {
+		const entry = this.retrieveEntry<TKey>(key)
 		entry.subscribers.add(callback)
 		callback(entry.getState())
 
 		return () => {
 			entry.subscribers.delete(callback)
 			if (entry.subscribers.size === 0) {
-				this.cache.delete(key)
+				this.cache.delete(this.serializeKey(key))
 			}
 		}
 	}
 
-	fetch<K extends keyof TQueries, T extends TQueries[K]>(
-		key: K,
-		fetcher: () => Promise<T>
-	): void {
-		let entry = this.cache.get(key) as QueryEntry<TQueries[K]> | undefined
-		if (!entry) {
-			entry = new QueryEntry<TQueries[K]>(this.dedupingTime)
-			this.cache.set(key, entry)
-		}
-
-		entry.fetch(fetcher)
+	fetch<TKey extends KeyOf<TDataMap>>(
+		key: QueryKeyOf<TDataMap>,
+		fetcher: () => Promise<TDataMap[TKey]>,
+		fetchOptions?: FetchOptions
+	): Promise<TDataMap[TKey]> | null {
+		return this.retrieveEntry<TKey>(key).fetch(fetcher, fetchOptions)
 	}
 
-	getState<K extends keyof TQueries>(key: K): QueryState<TQueries[K]> {
-		const entry = this.cache.get(key) as QueryEntry<TQueries[K]> | undefined
-		if (!entry) {
-			const newEntry = new QueryEntry<TQueries[K]>(this.dedupingTime)
-			this.cache.set(key, newEntry)
-			return newEntry.getState()
-		}
-		return entry.getState()
+	getState<TKey extends KeyOf<TDataMap>>(
+		key: QueryKeyOf<TDataMap>
+	): QueryState<TDataMap[TKey]> {
+		return this.retrieveEntry<TKey>(key).getState()
 	}
 }

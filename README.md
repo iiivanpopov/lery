@@ -32,23 +32,26 @@ pnpm add lery
 ```ts
 import { Lery } from 'lery'
 
+type User = { id: string; name: string }
+
 type API = {
-	user: { id: string; name: string }
-	count: number
+	user: User
 }
 
 const lery = new Lery<API>()
 
 // Subscribe to state changes
-const unsubscribe = lery.subscribe('user', state => {
+const unsubscribe = lery.subscribe(['user'], state => {
 	if (state.isLoading) console.log('Loading...')
-	if (state.isSuccess) console.log('User:', state.data)
+	if (state.isError) console.log('Error')
+	if (state.isSuccess) console.log('Success\n', state.data)
 })
 
 // Fetch user data
-lery.fetch('user', async () => {
+const response = await lery.fetch(['user'], async () => {
 	const res = await fetch('/api/user')
-	return res.json() as { id: string; name: string } // You should use your validator here
+	// You can use zod or json schema
+	return res.json() as Promise<User>
 })
 ```
 

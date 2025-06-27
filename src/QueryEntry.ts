@@ -1,16 +1,22 @@
-import { Status, type QueryState, type Subscriber } from './types'
+import {
+	Status,
+	type FetchOptions,
+	type QueryEntryOptions,
+	type QueryState,
+	type Subscriber,
+} from './types'
 
 export class QueryEntry<T> {
 	private data: T | null = null
 	private error: unknown | null = null
 	private status: Status = Status.IDLE
 	public isFetched = false
-	public subscribers = new Set<Subscriber<T>>()
 
+	public subscribers = new Set<Subscriber<T>>()
 	private lastFetchTime = 0
 	private currentPromise: Promise<T> | null = null
 
-	constructor(private dedupingTime: number = 5000) {}
+	constructor(private options?: QueryEntryOptions) {}
 
 	private notify() {
 		const state = this.getState()
@@ -53,12 +59,15 @@ export class QueryEntry<T> {
 		}
 	}
 
-	fetch(fetcher: () => Promise<T>): void {
+	fetch(fetcher: () => Promise<T>, options?: FetchOptions): Promise<T> | null {
 		const now = Date.now()
 
+		const mergedOptions = { ...this.options, ...options }
+		const dedupingTime = mergedOptions.dedupingTime ?? 5000
+
 		const isFetchOngoing =
-			this.currentPromise && this.lastFetchTime + this.dedupingTime > now
-		if (isFetchOngoing) return
+			this.currentPromise && this.lastFetchTime + dedupingTime > now
+		if (isFetchOngoing) return this.currentPromise
 
 		this.begin()
 		this.lastFetchTime = now
@@ -75,5 +84,7 @@ export class QueryEntry<T> {
 			.finally(() => {
 				this.currentPromise = null
 			})
+
+		return this.currentPromise
 	}
 }
