@@ -21,6 +21,13 @@ type PrimitiveKey = string | number
 
 export type KeyOf<T> = keyof T
 
+export interface QueryExecution<T> {
+	id: number
+	promise: Promise<T>
+	controller: AbortController
+	timestamp: number
+}
+
 // ==============================
 // Data & Cache
 // ==============================

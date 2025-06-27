@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { Lery, type QueryState, Status } from '../src'
+
 describe('Lery Query Manager', () => {
 	let lery: Lery<{
 		[key: string]: any

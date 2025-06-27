@@ -1,5 +1,6 @@
 import type {
 	QueryConfig,
+	QueryExecution,
 	QueryFetchConfig,
 	QueryMutateConfig,
 	QueryState,
@@ -7,51 +8,52 @@ import type {
 } from './types'
 import { QueryType, Status } from './types'
 
-export class Query<T> {
+export class Query<T, E = Error> {
 	private data: T | null = null
-	private error: unknown | null = null
+	private error: E | null = null
 	private status: Status = Status.IDLE
-	public isFetched = false
-
-	public subscribers: Set<Subscriber<T>> = new Set()
-
-	private lastFetchTime = 0
-	private currentPromise: Promise<T> | null = null
-
-	private fetchId = 0
+	private isFetched = false
+	public readonly subscribers = new Set<Subscriber<T>>()
+	private currentExecution: QueryExecution<T> | null = null
+	private executionCounter = 0
 
 	constructor(private config: QueryConfig) {}
 
-	private notify() {
+	private notify = () => {
 		const state = this.getState()
-		for (const cb of this.subscribers) cb(state)
+		this.subscribers.forEach(cb => cb(state))
 	}
 
-	private mergeOptions(config: QueryMutateConfig<T> | QueryFetchConfig<T>) {
-		return { ...this.config?.options, ...config.options }
+	private isExecutionActive = (id: number) => this.currentExecution?.id === id
+
+	private updateState(id: number, updates: Partial<QueryState<T>>): boolean {
+		if (!this.isExecutionActive(id)) return false
+
+		if (updates.data !== undefined) this.data = updates.data
+		if (updates.error !== undefined) this.error = updates.error as E
+		if (updates.status !== undefined) this.status = updates.status
+		if (updates.isFetched !== undefined) this.isFetched = updates.isFetched
+
+		this.notify()
+		return true
 	}
 
-	private setState(partial: {
-		data?: T | null
-		error?: unknown | null
-		status?: Status
-		isFetched?: boolean
-	}) {
-		if (partial.data !== undefined) this.data = partial.data
-		if (partial.error !== undefined) this.error = partial.error
-		if (partial.status !== undefined) this.status = partial.status
-		if (partial.isFetched !== undefined) this.isFetched = partial.isFetched
+	private forceUpdateState(updates: Partial<QueryState<T>>) {
+		if (updates.data !== undefined) this.data = updates.data
+		if (updates.error !== undefined) this.error = updates.error as E
+		if (updates.status !== undefined) this.status = updates.status
+		if (updates.isFetched !== undefined) this.isFetched = updates.isFetched
 		this.notify()
 	}
 
-	reset(config: Pick<QueryMutateConfig<T>, 'options'> & { type: QueryType }) {
+	reset() {
+		this.cancel()
 		this.data = null
 		this.error = null
 		this.status = Status.IDLE
 		this.isFetched = false
-		this.currentPromise = null
-		this.lastFetchTime = 0
-		this.config = config
+		this.currentExecution = null
+		this.executionCounter = 0
 		this.notify()
 	}
 
@@ -70,54 +72,83 @@ export class Query<T> {
 		}
 	}
 
-	query(config: QueryFetchConfig<T> | QueryMutateConfig<T>): Promise<T> | null {
+	query(config: QueryFetchConfig<T> | QueryMutateConfig<T>): Promise<T> {
 		const now = Date.now()
+		const options = { ...this.config?.options, ...config.options }
+		const dedupingTime = options.dedupingTime ?? 5000
 
-		const mergedOptions = this.mergeOptions(config)
-		const dedupingTime = mergedOptions.dedupingTime ?? 5000
+		if (
+			this.currentExecution &&
+			this.currentExecution.timestamp + dedupingTime > now
+		) {
+			return this.currentExecution.promise
+		}
 
-		if (this.currentPromise && this.lastFetchTime + dedupingTime > now)
-			return this.currentPromise
-		this.lastFetchTime = now
+		this.currentExecution?.controller.abort()
 
-		const isRefetching = this.isFetched && this.config.type === QueryType.FETCH
-		this.setState({
-			status: isRefetching ? Status.REFETCHING : Status.LOADING
+		const id = ++this.executionCounter
+		const controller = new AbortController()
+
+		this.forceUpdateState({
+			status:
+				this.isFetched && this.config.type === QueryType.FETCH
+					? Status.REFETCHING
+					: Status.LOADING
 		})
 
-		this.fetchId += 1
-		const currentId = this.fetchId
+		const promise = this.executeQuery(config, id, controller.signal)
+		this.currentExecution = { id, promise, controller, timestamp: now }
 
-		this.currentPromise = config
-			.queryFn()
-			.then(data => {
-				if (this.fetchId === currentId) {
-					this.setState({
-						data,
-						error: null,
-						status: Status.SUCCESS,
-						isFetched: true
-					})
-				}
-				return data
-			})
-			.catch(err => {
-				if (this.fetchId === currentId) {
-					this.setState({
-						data: null,
-						error: err instanceof Error ? err : new Error(String(err)),
-						status: Status.ERROR,
-						isFetched: true
-					})
-				}
-				return err
-			})
-			.finally(() => {
-				if (this.fetchId === currentId) {
-					this.currentPromise = null
-				}
+		return promise
+	}
+
+	private async executeQuery(
+		config: QueryFetchConfig<T> | QueryMutateConfig<T>,
+		id: number,
+		signal: AbortSignal
+	): Promise<T> {
+		try {
+			const data = await config.queryFn()
+
+			if (!this.isExecutionActive(id)) return data
+
+			this.updateState(id, {
+				data,
+				error: null,
+				status: Status.SUCCESS,
+				isFetched: true
 			})
 
-		return this.currentPromise
+			return data
+		} catch (error) {
+			if (signal.aborted) throw new Error('Query execution aborted')
+
+			const normalized =
+				error instanceof Error ? error : new Error(String(error))
+
+			if (this.isExecutionActive(id)) {
+				this.updateState(id, {
+					error: normalized as E,
+					status: Status.ERROR,
+					isFetched: true
+				})
+			}
+
+			throw normalized
+		} finally {
+			if (this.currentExecution?.id === id) {
+				this.currentExecution = null
+			}
+		}
+	}
+
+	cancel() {
+		this.currentExecution?.controller.abort()
+		this.currentExecution = null
+	}
+
+	subscribe = (cb: Subscriber<T>) => {
+		this.subscribers.add(cb)
+		return () => this.subscribers.delete(cb)
 	}
 }

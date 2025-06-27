@@ -71,7 +71,7 @@ export class Lery<TDataMap extends DataMap> {
 		config: MutateConfig<TDataMap, TKey>
 	): Promise<CacheValue<TDataMap, TKey>> | null {
 		const entry = this.retrieveEntry<TKey>(config.queryKey, QueryType.MUTATE)
-		entry.reset({ ...config, type: QueryType.MUTATE })
+		entry.reset()
 		return entry.query(config)
 	}
 
