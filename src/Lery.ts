@@ -20,7 +20,7 @@ export class Lery<TDataMap extends DataMap> {
 	constructor(private config?: LeryConfig) {}
 
 	private serializeKey(key: CacheKey<TDataMap>): string {
-		return key.join('|')
+		return JSON.stringify(key)
 	}
 
 	private retrieveEntry<TKey extends KeyOf<TDataMap>>(

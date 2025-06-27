@@ -1,14 +1,11 @@
-import {
-	type QueryConfig,
-	type QueryFetchConfig,
-	type QueryMutateConfig,
-	type QueryState,
-	QueryType,
-	Status,
-	type Subscriber
+import type {
+	QueryConfig,
+	QueryFetchConfig,
+	QueryMutateConfig,
+	QueryState,
+	Subscriber
 } from './types'
-
-const DEFAULT_DEDUPING_TIME = 5000 // ms
+import { QueryType, Status } from './types'
 
 export class Query<T> {
 	private data: T | null = null
@@ -34,47 +31,17 @@ export class Query<T> {
 		return { ...this.config?.options, ...config.options }
 	}
 
-	private setState({
-		data,
-		error,
-		status,
-		isFetched
-	}: {
+	private setState(partial: {
 		data?: T | null
 		error?: unknown | null
 		status?: Status
 		isFetched?: boolean
 	}) {
-		if (data !== undefined) this.data = data
-		if (error !== undefined) this.error = error
-		if (status !== undefined) this.status = status
-		if (isFetched !== undefined) this.isFetched = isFetched
+		if (partial.data !== undefined) this.data = partial.data
+		if (partial.error !== undefined) this.error = partial.error
+		if (partial.status !== undefined) this.status = partial.status
+		if (partial.isFetched !== undefined) this.isFetched = partial.isFetched
 		this.notify()
-	}
-
-	begin() {
-		const isRefetching = this.isFetched && this.config.type === QueryType.FETCH
-		this.setState({
-			status: isRefetching ? Status.REFETCHING : Status.LOADING
-		})
-	}
-
-	succeed(result: T) {
-		this.setState({
-			data: result,
-			error: null,
-			status: Status.SUCCESS,
-			isFetched: true
-		})
-	}
-
-	fail(err: unknown) {
-		this.setState({
-			data: null,
-			error: err instanceof Error ? err : new Error(String(err)),
-			status: Status.ERROR,
-			isFetched: true
-		})
 	}
 
 	reset(config: Pick<QueryMutateConfig<T>, 'options'> & { type: QueryType }) {
@@ -107,14 +74,16 @@ export class Query<T> {
 		const now = Date.now()
 
 		const mergedOptions = this.mergeOptions(config)
-		const dedupingTime = mergedOptions.dedupingTime ?? DEFAULT_DEDUPING_TIME
+		const dedupingTime = mergedOptions.dedupingTime ?? 5000
 
-		const isFetchOngoing =
-			this.currentPromise && this.lastFetchTime + dedupingTime > now
-		if (isFetchOngoing) return this.currentPromise
+		if (this.currentPromise && this.lastFetchTime + dedupingTime > now)
+			return this.currentPromise
 		this.lastFetchTime = now
 
-		this.begin()
+		const isRefetching = this.isFetched && this.config.type === QueryType.FETCH
+		this.setState({
+			status: isRefetching ? Status.REFETCHING : Status.LOADING
+		})
 
 		this.fetchId += 1
 		const currentId = this.fetchId
@@ -123,13 +92,23 @@ export class Query<T> {
 			.queryFn()
 			.then(data => {
 				if (this.fetchId === currentId) {
-					this.succeed(data)
+					this.setState({
+						data,
+						error: null,
+						status: Status.SUCCESS,
+						isFetched: true
+					})
 				}
 				return data
 			})
 			.catch(err => {
 				if (this.fetchId === currentId) {
-					this.fail(err)
+					this.setState({
+						data: null,
+						error: err instanceof Error ? err : new Error(String(err)),
+						status: Status.ERROR,
+						isFetched: true
+					})
 				}
 				return err
 			})

@@ -5,13 +5,12 @@ import type { Query } from './Query.ts'
 // ==============================
 
 export const Status = {
-	IDLE: 'IDLE',
-	LOADING: 'LOADING',
-	ERROR: 'ERROR',
-	REFETCHING: 'REFETCHING',
-	SUCCESS: 'SUCCESS'
+	IDLE: 0,
+	LOADING: 1,
+	ERROR: 2,
+	REFETCHING: 3,
+	SUCCESS: 4
 } as const
-
 export type Status = (typeof Status)[keyof typeof Status]
 
 // ==============================
@@ -20,7 +19,7 @@ export type Status = (typeof Status)[keyof typeof Status]
 
 type PrimitiveKey = string | number
 
-export type KeyOf<T> = Extract<keyof T, PrimitiveKey>
+export type KeyOf<T> = keyof T
 
 // ==============================
 // Data & Cache
@@ -119,8 +118,8 @@ export interface QueryOptions {
 }
 
 export const QueryType = {
-	MUTATE: 'MUTATE',
-	FETCH: 'FETCH'
+	MUTATE: 0,
+	FETCH: 1
 } as const
 export type QueryType = (typeof QueryType)[keyof typeof QueryType]
 

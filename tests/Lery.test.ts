@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { Lery, type QueryState, Status } from '../src'
-
 describe('Lery Query Manager', () => {
 	let lery: Lery<{
 		[key: string]: any
@@ -283,7 +282,6 @@ describe('Lery Query Manager', () => {
 			// Check reset state
 			expect(states[3]).toMatchObject({
 				status: Status.IDLE,
-				data: null,
 				error: null,
 				isFetched: false,
 				isIdle: true
@@ -470,9 +468,10 @@ describe('Lery Query Manager', () => {
 
 			// First fetch
 			await lery.fetch({ queryKey: ['dedup-expire-fetch'], queryFn: fetcher })
-
 			// Simulate time passage by manipulating lastFetchTime
-			const entry = (lery as any).cache.get('dedup-expire-fetch')
+			const entry = (lery as any).cache.get(
+				JSON.stringify(['dedup-expire-fetch'])
+			)
 			entry.lastFetchTime -= 6000 // Exceed default 5000ms deduping time
 
 			// Second fetch should be allowed

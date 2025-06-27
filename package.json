@@ -2,13 +2,11 @@
 	"name": "lery",
 	"version": "0.2.0",
 	"description": "Lightweight SWR analog",
-	"main": "dist/cjs/index.js",
-	"module": "dist/esm/index.js",
+	"module": "dist/index.js",
 	"types": "dist/index.d.ts",
 	"exports": {
 		".": {
-			"require": "./dist/cjs/index.js",
-			"import": "./dist/esm/index.js",
+			"import": "./dist/index.js",
 			"types": "./dist/index.d.ts"
 		}
 	},
@@ -28,15 +26,16 @@
 	},
 	"homepage": "https://github.com/iiivanpopov/lery#readme",
 	"devDependencies": {
+		"@types/bun": "^1.2.17",
 		"typescript": "^5.8.3"
 	},
 	"scripts": {
-		"build:esm": "bun build ./src/index.ts --outdir ./dist/esm --minify --target bun --format esm --sourcemap=none",
-		"build:cjs": "bun build ./src/index.ts --outdir ./dist/cjs --minify --target bun --format cjs --sourcemap=none",
+		"build:esm": "bun build ./src/index.ts --outdir ./dist --minify --packages external --sourcemap=none --drop console --drop debugger --format esm",
 		"build:types": "tsc -p tsconfig.types.json",
-		"build": "bun run build:esm && bun run build:cjs && bun run build:types",
+		"build": "bun run build:esm && bun run build:types",
 		"prepublishOnly": "bun run build"
 	},
+	"sideEffects": false,
 	"keywords": [
 		"typescript",
 		"cache",
