@@ -2,8 +2,8 @@
   "lockfileVersion": 1,
   "workspaces": {
     "": {
-      "name": "lightquery",
-      "peerDependencies": {
+      "name": "lery",
+      "devDependencies": {
         "typescript": "^5.8.3",
       },
     },

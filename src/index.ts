@@ -2,9 +2,10 @@ export { Lery } from './Lery'
 
 export {
 	Status,
+	type FetchConfig,
 	type FetchOptions,
-	type LeryOptions,
-	type QueryEntryOptions,
+	type LeryConfig,
 	type QueryState,
 	type Subscriber,
+	type Unsubscribe,
 } from './types'
