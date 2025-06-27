@@ -59,30 +59,44 @@ const response = await lery.fetch(['user'], async () => {
 
 ## 🧩 API
 
-### `new Lery<TQueries>()`
+### `new Lery<TDataMap>(options?)`
 
-Creates a new instance of the Lery store.
-`TQueries` maps keys to their corresponding response types.
+Creates a new Lery instance.
+
+- `TDataMap` maps keys to their response types.
+- `options` (optional): `{ dedupingTime?: number }` — global deduplication time in ms.
 
 ---
 
-### `fetch<K>(key: K, fetcher: () => Promise<TQueries[K]>)`
+### `fetch(key, fetcher, fetchOptions?)`
 
 Triggers an async fetch and updates state for the given key.
 
+- **key**: array key, e.g. `['user']` or `['post', 1]`
+- **fetcher**: function returning a `Promise<...>`
+- **fetchOptions** (optional): `{ dedupingTime?: number }` — deduplication time for this fetch
+
+Returns a `Promise` with the result, or `null` if deduplication is active.
+
 ---
 
-### `subscribe<K>(key: K, callback: (state: QueryState<TQueries[K]>) => void): () => void`
+### `subscribe(key, callback): () => void`
 
 Subscribes to state changes for a given key.
-The callback is called immediately with the current state and again whenever it updates.
-Returns an `unsubscribe` function.
+
+- **key**: array key, e.g. `['user']`
+- **callback**: function called on every state change
+
+The callback is called immediately with the current state.  
+Returns an unsubscribe function. If there are no subscribers left, the cache is cleared.
 
 ---
 
-### `getState<K>(key: K): QueryState<TQueries[K]>`
+### `getState(key)`
 
 Returns the current state for a given key without subscribing.
+
+- **key**: array key, e.g. `['user']`
 
 ---
 
@@ -100,27 +114,6 @@ type QueryState<T> = {
 	isError: boolean
 	isFetched: boolean
 }
-```
-
----
-
-## 🧪 Testing
-
-Using [Bun](https://bun.sh/):
-
-```bash
-bun test
-```
-
----
-
-## 📁 Project Structure
-
-```
-src/
-├── Lery.ts         // Public API and query manager
-├── QueryEntry.ts   // Internal cache unit per key
-├── types.ts        // Status enums and type definitions
 ```
 
 ---
