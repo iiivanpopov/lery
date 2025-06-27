@@ -7,5 +7,5 @@ export {
 	type LeryConfig,
 	type QueryState,
 	type Subscriber,
-	type Unsubscribe,
+	type Unsubscribe
 } from './types'

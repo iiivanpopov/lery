@@ -1,4 +1,4 @@
-import { Query } from './QueryEntry'
+import { Query } from './Query.ts'
 import type {
 	CacheKey,
 	CacheMap,
@@ -7,9 +7,10 @@ import type {
 	FetchConfig,
 	KeyOf,
 	LeryConfig,
+	MutateConfig,
 	QueryState,
 	SubscribeConfig,
-	Unsubscribe,
+	Unsubscribe
 } from './types'
 
 export class Lery<TDataMap extends DataMap> {
@@ -37,6 +38,10 @@ export class Lery<TDataMap extends DataMap> {
 		return entry
 	}
 
+	private invalidate(key: CacheKey<TDataMap>) {
+		this.cache.delete(this.serializeKey(key))
+	}
+
 	subscribe<TKey extends KeyOf<TDataMap>>(
 		config: SubscribeConfig<TDataMap, TKey>
 	): Unsubscribe {
@@ -58,7 +63,15 @@ export class Lery<TDataMap extends DataMap> {
 		config: FetchConfig<TDataMap, TKey>
 	): Promise<CacheValue<TDataMap, TKey>> | null {
 		const entry = this.retrieveEntry<TKey>(config.queryKey)
-		return entry.fetch(config)
+		return entry.query(config)
+	}
+
+	mutate<TKey extends KeyOf<TDataMap>>(
+		config: MutateConfig<TDataMap, TKey>
+	): Promise<CacheValue<TDataMap, TKey>> | null {
+		const entry = this.retrieveEntry<TKey>(config.queryKey)
+		entry.reset()
+		return entry.query(config)
 	}
 
 	getState<TKey extends KeyOf<TDataMap>>(

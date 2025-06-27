@@ -1,4 +1,4 @@
-import type { Query } from './QueryEntry'
+import type { Query } from './Query.ts'
 
 // ==============================
 // Constants
@@ -9,7 +9,7 @@ export const Status = {
 	LOADING: 'LOADING',
 	ERROR: 'ERROR',
 	REFETCHING: 'REFETCHING',
-	SUCCESS: 'SUCCESS',
+	SUCCESS: 'SUCCESS'
 } as const
 
 export type Status = (typeof Status)[keyof typeof Status]
@@ -99,6 +99,20 @@ export type FetchConfig<
 	options?: FetchOptions
 }
 
+// Lery.Mutate
+export interface MutateOptions {
+	dedupingTime?: number
+}
+
+export type MutateConfig<
+	TDataMap extends DataMap,
+	TKey extends KeyOf<TDataMap>
+> = {
+	queryKey: QueryKey<TDataMap>
+	queryFn: () => Promise<TDataMap[TKey]>
+	options?: MutateOptions
+}
+
 // Query
 export interface QueryOptions {
 	dedupingTime?: number
@@ -112,4 +126,10 @@ export interface QueryConfig {
 export type QueryFetchConfig<T> = {
 	queryFn: () => Promise<T>
 	options?: FetchOptions
+}
+
+// Query.Mutate
+export type QueryMutateConfig<T> = {
+	queryFn: () => Promise<T>
+	options?: MutateOptions
 }

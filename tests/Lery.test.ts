@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
-import { Lery } from '../src/Lery'
-import { Status, type QueryState } from '../src/types'
+import { Lery, type QueryState, Status } from '../src'
 
 describe('Lery class', () => {
 	let lery: Lery<{
@@ -17,7 +16,7 @@ describe('Lery class', () => {
 		const states: QueryState[] = []
 		lery.subscribe({
 			queryKey: ['key1'],
-			callback: state => states.push(state),
+			callback: state => states.push(state)
 		})
 
 		expect(states).toHaveLength(1)
@@ -29,7 +28,7 @@ describe('Lery class', () => {
 			isSuccess: false,
 			isError: false,
 			data: null,
-			error: null,
+			error: null
 		})
 	})
 
@@ -38,7 +37,7 @@ describe('Lery class', () => {
 		lery.subscribe({ queryKey: ['key2'], callback: s => states.push(s) })
 		lery.fetch({
 			queryKey: ['key2'],
-			queryFn: () => Promise.resolve('data123'),
+			queryFn: () => Promise.resolve('data123')
 		})
 
 		expect(states[1].status).toBe(Status.LOADING)
@@ -80,7 +79,7 @@ describe('Lery class', () => {
 
 		expect(states[4]).toMatchObject({
 			status: Status.SUCCESS,
-			data: 2,
+			data: 2
 		})
 	})
 
@@ -118,13 +117,13 @@ describe('Lery class', () => {
 		const states: QueryState[] = []
 		const unsub = lery.subscribe({
 			queryKey: ['key8'],
-			callback: s => states.push(s),
+			callback: s => states.push(s)
 		})
 		unsub()
 
 		lery.fetch({
 			queryKey: ['key8'],
-			queryFn: () => Promise.resolve('will-not-reach'),
+			queryFn: () => Promise.resolve('will-not-reach')
 		})
 		await wait()
 
@@ -154,7 +153,7 @@ describe('Lery class', () => {
 		await wait()
 		lery.fetch({
 			queryKey: ['key10'],
-			queryFn: () => Promise.resolve('second'),
+			queryFn: () => Promise.resolve('second')
 		})
 		await wait()
 
