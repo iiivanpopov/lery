@@ -27,11 +27,8 @@
 		"url": "https://github.com/iiivanpopov/lery.git"
 	},
 	"homepage": "https://github.com/iiivanpopov/lery#readme",
-	"peerDependencies": {
-		"typescript": "^5.8.3"
-	},
 	"devDependencies": {
-		"@types/bun": "latest"
+		"typescript": "^5.8.3"
 	},
 	"scripts": {
 		"build:esm": "bun build ./src/index.ts --outdir ./dist/esm --minify --target bun --format esm --sourcemap=none",
