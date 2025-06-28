@@ -1,84 +1,99 @@
-import { fnv1aHash } from './hash.ts'
+import { serializeKey } from './hash.ts'
 import { Query } from './Query.ts'
 import type {
 	CacheKey,
-	CacheMap,
 	CacheValue,
 	DataMap,
 	FetchConfig,
 	KeyOf,
 	LeryConfig,
 	MutateConfig,
-	QueryState,
-	SubscribeConfig,
-	Unsubscribe
+	SubscribeConfig
 } from './types'
 import { QueryType } from './types.ts'
 
 export class Lery<TDataMap extends DataMap> {
 	private cache = new Map<number, Query<any>>()
+	private cleanupTimer: any = null
+	readonly stopCleanup: () => void
 
-	constructor(private config?: LeryConfig) {}
-
-	private serializeKey(key: CacheKey<TDataMap>): number {
-		return fnv1aHash(key.join('\x1F'))
+	constructor(private config: LeryConfig = {}) {
+		this.stopCleanup = this.setupCleanup()
 	}
 
-	private retrieveEntry<TKey extends KeyOf<TDataMap>>(
-		key: CacheKey<TDataMap>,
-		type: QueryType = QueryType.FETCH
-	): Query<CacheValue<TDataMap, TKey>> {
-		const cacheKey = this.serializeKey(key)
-
-		let entryMap = this.cache as CacheMap<TDataMap, TKey>
-		let entry = entryMap.get(cacheKey)
-
-		if (!entry) {
-			entry = new Query<CacheValue<TDataMap, TKey>>({
-				...this.config,
-				type
-			})
-			entryMap.set(cacheKey, entry)
-		}
-
-		return entry
+	private setupCleanup = () => {
+		const ttl = this.config.options?.cacheTTL ?? 180000 // 3min
+		this.cleanupTimer = setInterval(this.cleanup, ttl)
+		return () => this.cleanupTimer && clearInterval(this.cleanupTimer)
 	}
 
-	subscribe<TKey extends KeyOf<TDataMap>>(
-		config: SubscribeConfig<TDataMap, TKey>
-	): Unsubscribe {
-		const entry = this.retrieveEntry<TKey>(config.queryKey)
-
-		entry.subscribers.add(config.callback)
-		config.callback(entry.state)
-
-		return () => {
-			entry.subscribers.delete(config.callback)
-			if (entry.subscribers.size === 0) {
-				const entryMap = this.cache as CacheMap<TDataMap, TKey>
-				entryMap.delete(this.serializeKey(config.queryKey))
+	private cleanup = () => {
+		const now = Date.now()
+		for (const [key, entry] of this.cache) {
+			if (now >= entry.lastFetchTime + entry.cacheTTL) {
+				this.cache.delete(key)
 			}
 		}
 	}
 
-	fetch<TKey extends KeyOf<TDataMap>>(
-		config: FetchConfig<TDataMap, TKey>
-	): Promise<CacheValue<TDataMap, TKey>> | null {
-		const entry = this.retrieveEntry<TKey>(config.queryKey, QueryType.FETCH)
-		return entry.query(config)
+	private getEntry<TKey extends KeyOf<TDataMap>>(
+		key: CacheKey<TDataMap>,
+		type: QueryType = QueryType.FETCH,
+		options?: Partial<LeryConfig['options']>
+	) {
+		const cacheKey = serializeKey(key)
+		let entry = this.cache.get(cacheKey)
+
+		if (!entry) {
+			const ttl = Math.max(
+				this.config.options?.cacheTTL ?? 0,
+				options?.cacheTTL ?? 0
+			)
+			entry = new Query({
+				...this.config,
+				type,
+				options: { ...this.config.options, ...options, cacheTTL: ttl }
+			})
+			this.cache.set(cacheKey, entry)
+		}
+		return entry as Query<CacheValue<TDataMap, TKey>>
 	}
 
-	mutate<TKey extends KeyOf<TDataMap>>(
-		config: MutateConfig<TDataMap, TKey>
-	): Promise<CacheValue<TDataMap, TKey>> | null {
-		const entry = this.retrieveEntry<TKey>(config.queryKey, QueryType.MUTATE)
+	subscribe<TKey extends KeyOf<TDataMap>>({
+		queryKey,
+		callback
+	}: SubscribeConfig<TDataMap, TKey>): () => void {
+		const entry = this.getEntry<TKey>(queryKey)
+		entry.subscribers.add(callback)
+		callback(entry.state)
+
+		return () => {
+			entry.subscribers.delete(callback)
+			if (!entry.subscribers.size) {
+				this.cache.delete(serializeKey(queryKey))
+			}
+		}
+	}
+
+	fetch<TKey extends KeyOf<TDataMap>>(config: FetchConfig<TDataMap, TKey>) {
+		return this.getEntry(
+			config.queryKey,
+			QueryType.FETCH,
+			config.options
+		).query(config)
+	}
+
+	mutate<TKey extends KeyOf<TDataMap>>(config: MutateConfig<TDataMap, TKey>) {
+		const entry = this.getEntry(
+			config.queryKey,
+			QueryType.MUTATE,
+			config.options
+		)
 		entry.reset()
 		return entry.query(config)
 	}
 
-	state<TKey extends KeyOf<TDataMap>>(
-		key: CacheKey<TDataMap>
-	): QueryState<CacheValue<TDataMap, TKey>> {
-		return this.retrieveEntry<TKey>(key).state
+	state<TKey extends KeyOf<TDataMap>>(key: CacheKey<TDataMap>) {
+		return this.getEntry<TKey>(key).state
 	}
 }

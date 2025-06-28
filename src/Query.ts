@@ -152,4 +152,12 @@ export class Query<T, E = Error> {
 		this.subscribers.add(cb)
 		return () => this.subscribers.delete(cb)
 	}
+
+	get lastFetchTime() {
+		return this.currentExecution?.timestamp ?? 0
+	}
+
+	get cacheTTL() {
+		return this.config.options?.cacheTTL ?? 0
+	}
 }

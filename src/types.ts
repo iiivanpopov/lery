@@ -67,8 +67,7 @@ export type QueryState<T = unknown> = {
 	readonly isFetched: boolean
 }
 
-export type Subscriber<T> = (state: QueryState<T>) => void
-export type Unsubscribe = () => void
+export type Subscriber<T = unknown> = (state: QueryState<T>) => void
 
 export type SubscribeConfig<
 	TDataMap extends DataMap,
@@ -85,6 +84,7 @@ export type SubscribeConfig<
 // Lery
 export interface LeryOptions {
 	dedupingTime?: number
+	cacheTTL?: number
 }
 
 export interface LeryConfig {
@@ -94,6 +94,7 @@ export interface LeryConfig {
 // Lery.Fetch
 export interface FetchOptions {
 	dedupingTime?: number
+	cacheTTL?: number
 }
 
 export type FetchConfig<
@@ -108,6 +109,7 @@ export type FetchConfig<
 // Lery.Mutate
 export interface MutateOptions {
 	dedupingTime?: number
+	cacheTTL?: number
 }
 
 export type MutateConfig<
@@ -122,6 +124,7 @@ export type MutateConfig<
 // Query
 export interface QueryOptions {
 	dedupingTime?: number
+	cacheTTL?: number
 }
 
 export const QueryType = {

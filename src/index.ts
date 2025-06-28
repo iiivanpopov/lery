@@ -1,19 +1,13 @@
 export { Lery } from './Lery'
-
 export { Status } from './types'
-
-export type { QueryState } from './types'
-
-export type { DataMap, QueryKey, CacheKey, KeyOf } from './types'
-
-export type { LeryConfig, LeryOptions } from './types'
-
 export type {
 	FetchConfig,
 	FetchOptions,
+	LeryConfig,
+	LeryOptions,
 	MutateConfig,
 	MutateOptions,
-	SubscribeConfig
+	QueryState,
+	SubscribeConfig,
+	Subscriber
 } from './types'
-
-export type { Subscriber, Unsubscribe } from './types'
