@@ -30,7 +30,7 @@
 		"typescript": "^5.8.3"
 	},
 	"scripts": {
-		"clean": "rm -rf ./dist",
+		"clean": "powershell Remove-Item -Recurse -Force -Path ./dist",
 		"build:esm": "bun build ./src/index.ts --outdir ./dist --minify --packages external --sourcemap=none --drop console --drop debugger --format esm --target=browser",
 		"build:types": "tsc -p tsconfig.types.json",
 		"build": "bun run build:esm && bun run build:types",
