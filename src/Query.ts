@@ -19,34 +19,26 @@ export class Query<T, E = Error> {
 
 	constructor(private config: QueryConfig) {}
 
-	private notify = () => {
-		if (this.subscribers.size === 0) return
-		const state = this.state
-		this.subscribers.forEach(cb => cb(state))
+	private notify() {
+		this.subscribers.forEach(cb => cb(this.state))
 	}
 
 	private isExecutionActive = (id: number) => this.currentExecution?.id === id
 
-	private updateState(id: number, updates: Partial<QueryState<T>>): boolean {
-		if (!this.isExecutionActive(id)) return false
+	private updateState(id: number, updates: Partial<QueryState<T>>) {
+		if (!this.isExecutionActive(id)) return
 
-		if (updates.data !== undefined) this.data = updates.data
-		if (updates.error !== undefined) this.error = updates.error as E
-		if (updates.status !== undefined) this.status = updates.status
-		if (updates.isFetched !== undefined) this.isFetched = updates.isFetched
-
+		this.forceUpdateState(updates)
 		this.notify()
-		return true
 	}
 
-	private forceUpdateState(updates: Partial<QueryState<T>>): true {
+	private forceUpdateState(updates: Partial<QueryState<T>>) {
 		if (updates.data !== undefined) this.data = updates.data
 		if (updates.error !== undefined) this.error = updates.error as E
 		if (updates.status !== undefined) this.status = updates.status
 		if (updates.isFetched !== undefined) this.isFetched = updates.isFetched
 
 		this.notify()
-		return true
 	}
 
 	reset() {

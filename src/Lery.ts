@@ -22,7 +22,7 @@ export class Lery<TDataMap extends DataMap> {
 	}
 
 	private setupCleanup = () => {
-		const ttl = this.config.options?.cacheTTL ?? 180000 // 3min
+		const ttl = this.config.options?.cacheTTL ?? 180000
 		this.cleanupTimer = setInterval(this.cleanup, ttl)
 		return () => this.cleanupTimer && clearInterval(this.cleanupTimer)
 	}

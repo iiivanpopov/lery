@@ -7,9 +7,9 @@ import type { Query } from './Query.ts'
 export const Status = {
 	IDLE: 0,
 	LOADING: 1,
-	ERROR: 2,
-	REFETCHING: 3,
-	SUCCESS: 4
+	REFETCHING: 2,
+	SUCCESS: 3,
+	ERROR: 4
 } as const
 export type Status = (typeof Status)[keyof typeof Status]
 
