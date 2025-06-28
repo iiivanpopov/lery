@@ -2,12 +2,11 @@ import { Query } from './Query'
 import type {
 	DataMap,
 	FetchConfig,
-	KeyOf,
 	LeryConfig,
 	MutateConfig,
-	QueryKey,
+	QueryKeyFor,
 	QueryOptions,
-	SubscribeConfig
+	Subscriber
 } from './types'
 import { QueryType } from './types'
 import { serializeKey } from './utils'
@@ -24,8 +23,134 @@ export class Lery<TDataMap extends DataMap> {
 		entry.reset()
 	}
 
-	private getEntry<TKey extends KeyOf<TDataMap>>(
-		key: QueryKey<TDataMap>,
+	private cleanupCache() {
+		const now = Date.now()
+		const maxSize = this.config.options?.maxCacheSize ?? 100
+
+		const keysToDelete: number[] = []
+		for (const [key, entry] of this.cache.entries()) {
+			const ttl = entry.cacheTTL
+			if (
+				ttl > 0 &&
+				now - entry.lastFetchTime > ttl &&
+				entry.subscribersCount === 0
+			) {
+				keysToDelete.push(key)
+			}
+		}
+		for (const key of keysToDelete) {
+			const entry = this.cache.get(key)
+			if (entry) {
+				this.cleanupEntry(entry)
+				this.cache.delete(key)
+			}
+		}
+
+		if (this.cache.size <= maxSize) return
+
+		const candidates = Array.from(this.cache.entries()).filter(
+			([, entry]) => entry.subscribersCount === 0
+		)
+		const entries =
+			candidates.length > 0 ? candidates : Array.from(this.cache.entries())
+
+		if (entries.length === 0) return
+
+		let oldest = entries[0]!
+
+		for (const entry of entries) {
+			if (entry[1].lastFetchTime < oldest[1].lastFetchTime) {
+				oldest = entry
+			}
+		}
+
+		this.cleanupEntry(oldest[1])
+		this.cache.delete(oldest[0])
+	}
+
+	private validateQueryOptions(opts: QueryOptions) {
+		if (opts.dedupingTime !== undefined && opts.dedupingTime < 0) {
+			throw new Error('dedupingTime must be >= 0')
+		}
+		if (opts.cacheTTL !== undefined && opts.cacheTTL < 0) {
+			throw new Error('cacheTTL must be >= 0')
+		}
+		if (opts.staleTime !== undefined && opts.staleTime < 0) {
+			throw new Error('staleTime must be >= 0')
+		}
+		if (opts.refreshInterval !== undefined && opts.refreshInterval < 0) {
+			throw new Error('refreshInterval must be >= 0')
+		}
+		if (
+			opts.cacheTTL !== undefined &&
+			opts.staleTime !== undefined &&
+			opts.cacheTTL < opts.staleTime
+		) {
+			throw new Error('cacheTTL must be >= staleTime')
+		}
+	}
+
+	private newQuery(type: QueryType, options?: QueryOptions): Query<any> {
+		const mergedOptions = {
+			...this.config.options,
+			...options
+		}
+
+		this.validateQueryOptions(mergedOptions)
+
+		return new Query({
+			type,
+			...this.config,
+			options: { ...mergedOptions }
+		})
+	}
+
+	// --- Public API ---
+
+	subscribe<TKey extends keyof TDataMap>({
+		queryKey,
+		callback
+	}: {
+		queryKey: QueryKeyFor<TDataMap, TKey>
+		callback: Subscriber<TDataMap[TKey]>
+	}): () => void {
+		const entry = this.getEntry<TKey>(queryKey)
+
+		const unsubscribe = entry.subscribe(callback)
+		callback(entry.state)
+
+		return () => unsubscribe()
+	}
+
+	state<TKey extends keyof TDataMap>(key: QueryKeyFor<TDataMap, TKey>) {
+		return this.getEntry<TKey>(key).state
+	}
+
+	fetch<TKey extends keyof TDataMap>(
+		config: FetchConfig<TDataMap, TKey>
+	): Promise<TDataMap[TKey]> {
+		const entry = this.getEntry<TKey>(
+			config.queryKey,
+			QueryType.FETCH,
+			config.options
+		)
+		return entry.query(config)
+	}
+
+	mutate<TKey extends keyof TDataMap>(
+		config: MutateConfig<TDataMap, TKey>
+	): Promise<TDataMap[TKey]> {
+		const entry = this.getEntry<TKey>(
+			config.queryKey,
+			QueryType.MUTATE,
+			config.options
+		)
+		entry.reset()
+		return entry.query(config)
+	}
+
+	private getEntry<TKey extends keyof TDataMap>(
+		key: QueryKeyFor<TDataMap, TKey>,
 		type: QueryType = QueryType.FETCH,
 		options?: QueryOptions
 	): Query<TDataMap[TKey]> {
@@ -42,83 +167,9 @@ export class Lery<TDataMap extends DataMap> {
 		return entry as Query<TDataMap[TKey]>
 	}
 
-	private cleanupCache() {
-		const maxSize = this.config.options?.maxCacheSize ?? 100
-		if (this.cache.size <= maxSize) return
-
-		const unsubscribed = Array.from(this.cache.entries()).filter(
-			([, entry]) => entry.subscribersCount === 0
-		)
-
-		const entries =
-			unsubscribed.length > 0 ? unsubscribed : Array.from(this.cache.entries())
-
-		const [key, entry] = entries.reduce((a, b) =>
-			a[1].lastFetchTime <= b[1].lastFetchTime ? a : b
-		)
-
-		this.cleanupEntry(entry)
-		this.cache.delete(key)
-	}
-
-	private newQuery(type: QueryType, options?: QueryOptions): Query<any> {
-		const mergedOptions = {
-			...this.config.options,
-			...options
-		}
-
-		const ttl = Math.max(
-			this.config.options?.cacheTTL ?? 0,
-			options?.cacheTTL ?? 0
-		)
-
-		return new Query({
-			type,
-			...this.config,
-			options: { ...mergedOptions, cacheTTL: ttl }
-		})
-	}
-
-	// --- Public API ---
-
-	subscribe<TKey extends KeyOf<TDataMap>>({
-		queryKey,
-		callback
-	}: SubscribeConfig<TDataMap, TKey>): () => void {
-		const entry = this.getEntry<TKey>(queryKey)
-
-		const unsubscribe = entry.subscribe(callback)
-		callback(entry.state)
-
-		return () => unsubscribe()
-	}
-
-	state<TKey extends KeyOf<TDataMap>>(key: QueryKey<TDataMap>) {
-		return this.getEntry<TKey>(key).state
-	}
-
-	fetch<TKey extends KeyOf<TDataMap>>(config: FetchConfig<TDataMap, TKey>) {
-		const entry = this.getEntry<TKey>(
-			config.queryKey,
-			QueryType.FETCH,
-			config.options
-		)
-
-		return entry.query(config)
-	}
-
-	mutate<TKey extends KeyOf<TDataMap>>(config: MutateConfig<TDataMap, TKey>) {
-		const entry = this.getEntry<TKey>(
-			config.queryKey,
-			QueryType.MUTATE,
-			config.options
-		)
-
-		entry.reset()
-		return entry.query(config)
-	}
-
-	invalidate(queryKey: QueryKey<TDataMap>) {
+	invalidate<TKey extends keyof TDataMap>(
+		queryKey: QueryKeyFor<TDataMap, TKey>
+	) {
 		const cacheKey = serializeKey(queryKey)
 		const entry = this.cache.get(cacheKey)
 
@@ -128,8 +179,8 @@ export class Lery<TDataMap extends DataMap> {
 		}
 	}
 
-	async refetch<TKey extends KeyOf<TDataMap>>(
-		queryKey: QueryKey<TDataMap>,
+	async refetch<TKey extends keyof TDataMap>(
+		queryKey: QueryKeyFor<TDataMap, TKey>,
 		queryFn: () => Promise<TDataMap[TKey]>
 	) {
 		const entry = this.getEntry<TKey>(queryKey, QueryType.FETCH)

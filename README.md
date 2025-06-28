@@ -7,26 +7,6 @@ Inspired by TanStack Query, but implemented from scratch with **zero dependencie
 
 ## ✨ Features
 
-- 🔁 Cache data by key
-- 🔔 Subscribe to updates
-- 📦 Track loading status (`IDLE`, `LOADING`, `SUCCESS`, `ERROR`, `REFETCHING`)
-- ⚡️ Simple API: `fetch`, `subscribe`, `getState`
-- 🔒 Fully type-safe
-
----
-
-## 📦 Installation
-
-```bash
-bun add lery
-# or
-npm install lery
-# or
-pnpm add lery
-```
-
----
-
 ## 🚀 Quick Start
 
 ## 🧩 API

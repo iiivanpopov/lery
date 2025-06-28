@@ -8,20 +8,13 @@ export const Status = {
 export type Status = (typeof Status)[keyof typeof Status]
 
 export type PrimitiveKey = string | number | boolean | symbol
-export type KeyOf<T> = keyof T
-export type QueryKey<TDataMap extends DataMap> = [
-	KeyOf<TDataMap>,
-	...PrimitiveKey[]
-]
-
-export interface QueryExecution<T> {
-	id: number
-	promise: Promise<T>
-	controller: AbortController
-	timestamp: number
-}
 
 export type DataMap = Record<string, unknown>
+
+export type QueryKeyFor<
+	TDataMap extends DataMap,
+	TKey extends keyof TDataMap
+> = [TKey, ...PrimitiveKey[]]
 
 export type QueryState<T = unknown> = Readonly<{
 	data: T | null
@@ -84,15 +77,12 @@ export interface QueryBaseConfig<T, C = unknown> extends QueryContext<C> {
 	hooks?: Hooks<T>
 }
 
-export type QueryFetchConfig<T, C = unknown> = QueryBaseConfig<T, C>
-export type QueryMutateConfig<T, C = unknown> = QueryBaseConfig<T, C>
-
 export interface QueryActionConfig<
 	TDataMap extends DataMap,
 	TKey extends keyof TDataMap,
 	C = unknown
 > extends QueryContext<C> {
-	queryKey: QueryKey<TDataMap>
+	queryKey: QueryKeyFor<TDataMap, TKey>
 	queryFn: QueryFn<TDataMap[TKey], C>
 	options?: QueryOptions
 	hooks?: Hooks<TDataMap[TKey]>
@@ -113,6 +103,13 @@ export interface SubscribeConfig<
 	TDataMap extends DataMap,
 	TKey extends keyof TDataMap
 > {
-	queryKey: QueryKey<TDataMap>
+	queryKey: QueryKeyFor<TDataMap, TKey>
 	callback: Subscriber<TDataMap[TKey]>
+}
+
+export interface QueryExecution<T> {
+	id: number
+	promise: Promise<T>
+	controller: AbortController
+	timestamp: number
 }

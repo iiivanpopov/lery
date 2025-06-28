@@ -1,8 +1,7 @@
 import type {
+	QueryBaseConfig,
 	QueryConfig,
 	QueryExecution,
-	QueryFetchConfig,
-	QueryMutateConfig,
 	QueryState,
 	Subscriber
 } from './types'
@@ -20,13 +19,13 @@ export class Query<T, E = Error> {
 	private currentExecution: QueryExecution<T> | null = null
 	private executionCounter = 0
 	private refreshTimer: NodeJS.Timeout | null = null
-	private lastConfig: QueryFetchConfig<T> | QueryMutateConfig<T> | null = null
+	private lastConfig: QueryBaseConfig<T> | null = null
 
 	constructor(private config: QueryConfig) {}
 
 	// --- Refresh Logic ---
 
-	private setupRefresh(config: QueryFetchConfig<T>) {
+	private setupRefresh(config: QueryBaseConfig<T>) {
 		this.clearRefreshTimer()
 
 		const interval = this.config.options?.refreshInterval
@@ -97,7 +96,7 @@ export class Query<T, E = Error> {
 
 	// --- Staleness & Deduping ---
 
-	private isStale(config: QueryFetchConfig<T> | QueryMutateConfig<T>): boolean {
+	private isStale(config: QueryBaseConfig<T>): boolean {
 		if (this.config.type === QueryType.MUTATE) return true
 		if (!this.isFetched || this.data === null) return true
 
@@ -110,9 +109,7 @@ export class Query<T, E = Error> {
 		return Date.now() >= this.lastSuccessTime + staleTime
 	}
 
-	private shouldFetch(
-		config: QueryFetchConfig<T> | QueryMutateConfig<T>
-	): boolean {
+	private shouldFetch(config: QueryBaseConfig<T>): boolean {
 		if (this.currentExecution) {
 			const now = Date.now()
 			const options = { ...this.config.options, ...config.options }
@@ -158,7 +155,7 @@ export class Query<T, E = Error> {
 		}
 	}
 
-	async query(config: QueryFetchConfig<T> | QueryMutateConfig<T>): Promise<T> {
+	async query(config: QueryBaseConfig<T>): Promise<T> {
 		this.lastConfig = config
 
 		if (!this.shouldFetch(config)) {
@@ -179,7 +176,7 @@ export class Query<T, E = Error> {
 			this.config.type === QueryType.FETCH &&
 			this.subscribers.size > 0
 		) {
-			this.setupRefresh(config as QueryFetchConfig<T>)
+			this.setupRefresh(config as QueryBaseConfig<T>)
 		}
 
 		this.forceUpdateState({
@@ -196,7 +193,7 @@ export class Query<T, E = Error> {
 	}
 
 	private async executeQuery(
-		config: QueryFetchConfig<T> | QueryMutateConfig<T>,
+		config: QueryBaseConfig<T>,
 		id: number,
 		internalSignal: AbortSignal
 	): Promise<T> {
