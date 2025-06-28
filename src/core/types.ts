@@ -72,9 +72,16 @@ export interface QueryContext<C = unknown> {
 
 export type QueryFn<T, C = unknown> = (ctx: QueryContext<C>) => Promise<T>
 
+export interface Hooks<T> {
+	onSuccess?: (state: QueryState<T>) => void
+	onError?: (state: QueryState<T>) => void
+	onFinish?: (state: QueryState<T>) => void
+}
+
 export interface QueryBaseConfig<T, C = unknown> extends QueryContext<C> {
 	queryFn: QueryFn<T, C>
 	options?: QueryOptions
+	hooks?: Hooks<T>
 }
 
 export type QueryFetchConfig<T, C = unknown> = QueryBaseConfig<T, C>
@@ -88,6 +95,7 @@ export interface QueryActionConfig<
 	queryKey: QueryKey<TDataMap>
 	queryFn: QueryFn<TDataMap[TKey], C>
 	options?: QueryOptions
+	hooks?: Hooks<TDataMap[TKey]>
 }
 
 export type FetchConfig<

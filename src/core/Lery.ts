@@ -98,15 +98,17 @@ export class Lery<TDataMap extends DataMap> {
 	}
 
 	fetch<TKey extends KeyOf<TDataMap>>(config: FetchConfig<TDataMap, TKey>) {
-		return this.getEntry(
+		const entry = this.getEntry<TKey>(
 			config.queryKey,
 			QueryType.FETCH,
 			config.options
-		).query(config)
+		)
+
+		return entry.query(config)
 	}
 
 	mutate<TKey extends KeyOf<TDataMap>>(config: MutateConfig<TDataMap, TKey>) {
-		const entry = this.getEntry(
+		const entry = this.getEntry<TKey>(
 			config.queryKey,
 			QueryType.MUTATE,
 			config.options

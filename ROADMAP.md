@@ -26,8 +26,7 @@
 - ✅ Lazy cache cleanup (on‑access eviction)
 - ✅ Minimize allocations on state updates
 - ✅ Pass `AbortSignal` & `context` into `queryFn`
-- ⬜ `onSuccess` / `onError` / `onSettled` callbacks
-- ⬜ Support for custom `meta` in query configs
+- ✅ `onSuccess` / `onError` / `onSettled` callbacks
 
 ### Version **0.5.x** _(Medium‑term)_
 
@@ -36,6 +35,7 @@
 - ⬜ Fully‑strict typings for `QueryKey`, `TKey`, `DataMap`
 - ⬜ Lazy initialization of `Query` instances
 - ⬜ Advanced GC & memory optimizations
+- ⬜ Support for custom `meta` in query configs (plugins)
 
 ---
 

@@ -61,7 +61,9 @@ export class Query<T, E = Error> {
 	private updateState(id: number, updates: Partial<QueryState<T>>) {
 		if (this.isExecutionActive(id)) {
 			this.forceUpdateState(updates)
+			return true
 		}
+		return false
 	}
 
 	private forceUpdateState(updates: Partial<QueryState<T>>) {
@@ -203,7 +205,7 @@ export class Query<T, E = Error> {
 		try {
 			const data = await config.queryFn({ signal, context: config.context })
 
-			this.updateState(id, {
+			const isUpdated = this.updateState(id, {
 				data,
 				error: null,
 				status: Status.SUCCESS,
@@ -214,6 +216,10 @@ export class Query<T, E = Error> {
 				this.lastSuccessTime = Date.now()
 			}
 
+			if (isUpdated && config?.hooks?.onSuccess) {
+				config.hooks.onSuccess(this.state)
+			}
+
 			return data
 		} catch (error) {
 			if (signal.aborted) throw new Error('Query aborted')
@@ -221,14 +227,21 @@ export class Query<T, E = Error> {
 			const normalized =
 				error instanceof Error ? error : new Error(String(error))
 
-			this.updateState(id, {
+			const isUpdated = this.updateState(id, {
 				error: normalized as E,
 				status: Status.ERROR,
 				isFetched: true
 			})
 
+			if (isUpdated && config?.hooks?.onError) {
+				config.hooks.onError(this.state)
+			}
+
 			throw normalized
 		} finally {
+			if (config?.hooks?.onFinish) {
+				config?.hooks?.onFinish(this.state)
+			}
 			if (this.currentExecution?.id === id) {
 				this.currentExecution = null
 			}
