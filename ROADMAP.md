@@ -17,4 +17,4 @@
 - [x] Cache invalidation
 - [x] Deduping interval
 - [x] Race condition
-- [ ] Cache size limit
+- [x] Cache size limit

@@ -140,7 +140,7 @@ export class Query<T, E = Error> {
 		this.currentExecution = null
 	}
 
-	subscribe = (cb: Subscriber<T>) => {
+	subscribe(cb: Subscriber<T>) {
 		this.subscribers.add(cb)
 		return () => this.subscribers.delete(cb)
 	}

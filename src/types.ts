@@ -85,6 +85,7 @@ export type SubscribeConfig<
 export interface LeryOptions {
 	dedupingTime?: number
 	cacheTTL?: number
+	maxCacheSize?: number
 }
 
 export interface LeryConfig {

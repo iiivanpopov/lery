@@ -8,6 +8,7 @@ import type {
 	KeyOf,
 	LeryConfig,
 	MutateConfig,
+	QueryOptions,
 	SubscribeConfig
 } from './types'
 import { QueryType } from './types.ts'
@@ -21,13 +22,13 @@ export class Lery<TDataMap extends DataMap> {
 		this.stopCleanup = this.setupCleanup()
 	}
 
-	private setupCleanup = () => {
+	private setupCleanup() {
 		const ttl = this.config.options?.cacheTTL ?? 180000
 		this.cleanupTimer = setInterval(this.cleanup, ttl)
 		return () => this.cleanupTimer && clearInterval(this.cleanupTimer)
 	}
 
-	private cleanup = () => {
+	private cleanup() {
 		const now = Date.now()
 		for (const [key, entry] of this.cache) {
 			if (now >= entry.lastFetchTime + entry.cacheTTL) {
@@ -39,24 +40,46 @@ export class Lery<TDataMap extends DataMap> {
 	private getEntry<TKey extends KeyOf<TDataMap>>(
 		key: CacheKey<TDataMap>,
 		type: QueryType = QueryType.FETCH,
-		options?: Partial<LeryConfig['options']>
+		options?: QueryOptions
 	) {
 		const cacheKey = serializeKey(key)
-		let entry = this.cache.get(cacheKey)
 
-		if (!entry) {
-			const ttl = Math.max(
-				this.config.options?.cacheTTL ?? 0,
-				options?.cacheTTL ?? 0
-			)
-			entry = new Query({
-				...this.config,
-				type,
-				options: { ...this.config.options, ...options, cacheTTL: ttl }
-			})
-			this.cache.set(cacheKey, entry)
-		}
+		let entry = this.cache.get(cacheKey)
+		if (entry) return entry as Query<CacheValue<TDataMap, TKey>>
+
+		this.cleanupCache()
+		entry = this.newQuery(type, options)
+		this.cache.set(cacheKey, entry)
+
 		return entry as Query<CacheValue<TDataMap, TKey>>
+	}
+
+	private cleanupCache() {
+		const maxSize = this.config.options?.maxCacheSize ?? 100
+		if (this.cache.size <= maxSize) return
+
+		const oldestKey = this.cache.keys().next().value
+		if (!oldestKey) return
+
+		const entry = this.cache.get(oldestKey)
+		if (!entry) return
+
+		entry.cancel()
+		entry.reset()
+		this.cache.delete(oldestKey)
+	}
+
+	private newQuery(type: QueryType, options?: QueryOptions) {
+		const ttl = Math.max(
+			this.config.options?.cacheTTL ?? 0,
+			options?.cacheTTL ?? 0
+		)
+
+		return new Query({
+			type,
+			...this.config,
+			options: { ...this.config.options, ...options, cacheTTL: ttl }
+		})
 	}
 
 	subscribe<TKey extends KeyOf<TDataMap>>({
@@ -75,6 +98,10 @@ export class Lery<TDataMap extends DataMap> {
 		}
 	}
 
+	state<TKey extends KeyOf<TDataMap>>(key: CacheKey<TDataMap>) {
+		return this.getEntry<TKey>(key).state
+	}
+
 	fetch<TKey extends KeyOf<TDataMap>>(config: FetchConfig<TDataMap, TKey>) {
 		return this.getEntry(
 			config.queryKey,
@@ -91,9 +118,5 @@ export class Lery<TDataMap extends DataMap> {
 		)
 		entry.reset()
 		return entry.query(config)
-	}
-
-	state<TKey extends KeyOf<TDataMap>>(key: CacheKey<TDataMap>) {
-		return this.getEntry<TKey>(key).state
 	}
 }
