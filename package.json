@@ -1,6 +1,6 @@
 {
 	"name": "lery",
-	"version": "0.3.3",
+	"version": "0.3.4",
 	"description": "Lightweight SWR analog",
 	"module": "dist/index.js",
 	"types": "dist/index.d.ts",
