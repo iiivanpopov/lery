@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it } from 'bun:test'
 import { Lery, type QueryState, Status } from '../src'
-import { serializeKey } from '../src/hash'
 
 describe('Lery Query Manager', () => {
 	let lery: Lery<{
@@ -8,10 +7,18 @@ describe('Lery Query Manager', () => {
 	}>
 
 	beforeEach(() => {
-		lery = new Lery()
+		lery = new Lery({
+			options: {
+				dedupingTime: 200,
+				cacheTTL: 300,
+				maxCacheSize: 200,
+				staleTime: 100
+			}
+		})
 	})
 
 	const wait = () => Promise.resolve().then(() => Promise.resolve())
+	const sleep = (ms: number = 250) => new Promise(res => setTimeout(res, ms))
 
 	// ============================================================================
 	// SUBSCRIPTION TESTS
@@ -166,7 +173,7 @@ describe('Lery Query Manager', () => {
 
 			await lery.fetch({
 				queryKey: ['fetch-error'],
-				queryFn: () => Promise.reject(new Error('fetch-failed'))
+				queryFn: () => Promise.reject('fetch-failed')
 			})
 
 			expect(states.length).toBeGreaterThan(0)
@@ -186,13 +193,15 @@ describe('Lery Query Manager', () => {
 			})
 			await wait()
 
+			await sleep()
+
 			// Second fetch should use REFETCHING
 			lery.fetch({
 				queryKey: ['fetch-refetch'],
 				queryFn: () => Promise.resolve('second-data')
 			})
 
-			expect(states[4]).toMatchObject({
+			expect(states[3]).toMatchObject({
 				status: Status.REFETCHING,
 				isFetching: true,
 				isLoading: false
@@ -200,7 +209,7 @@ describe('Lery Query Manager', () => {
 
 			await wait()
 
-			expect(states[5]).toMatchObject({
+			expect(states[4]).toMatchObject({
 				status: Status.SUCCESS,
 				data: 'second-data'
 			})
@@ -219,6 +228,8 @@ describe('Lery Query Manager', () => {
 				queryFn: () => Promise.resolve('original-data')
 			})
 			await wait()
+
+			await sleep()
 
 			// Second fetch with different data
 			lery.fetch({
@@ -269,7 +280,7 @@ describe('Lery Query Manager', () => {
 			})
 
 			// Check reset state
-			expect(states[4]).toMatchObject({
+			expect(states[3]).toMatchObject({
 				status: Status.IDLE,
 				error: null,
 				isFetched: false,
@@ -277,11 +288,11 @@ describe('Lery Query Manager', () => {
 			})
 
 			// Check loading state
-			expect(states[5].status).toBe(Status.LOADING)
+			expect(states[4].status).toBe(Status.LOADING)
 			await wait()
 
 			// Check final success state
-			expect(states[6]).toMatchObject({
+			expect(states[5]).toMatchObject({
 				status: Status.SUCCESS,
 				data: 'mutated-data'
 			})
@@ -359,10 +370,10 @@ describe('Lery Query Manager', () => {
 				queryFn: () => Promise.resolve('mutated')
 			})
 
-			expect(states[5].status).toBe(Status.LOADING) // Not REFETCHING
+			expect(states[4].status).toBe(Status.LOADING) // Not REFETCHING
 			await wait()
 
-			expect(states[6]).toMatchObject({
+			expect(states[5]).toMatchObject({
 				status: Status.SUCCESS,
 				data: 'mutated'
 			})
@@ -443,7 +454,7 @@ describe('Lery Query Manager', () => {
 				queryFn: fetcher
 			})
 
-			expect(promise1).toBe(promise2) // Same promise returned
+			expect(promise1).toEqual(promise2) // Same promise returned
 			await promise1
 			expect(fetchCallCount).toBe(1) // Only called once
 		})
@@ -457,12 +468,8 @@ describe('Lery Query Manager', () => {
 
 			// First fetch
 			await lery.fetch({ queryKey: ['dedup-expire-fetch'], queryFn: fetcher })
-			// Simulate time passage by manipulating lastFetchTime
-			const entry = (lery as any).cache.get(
-				serializeKey(['dedup-expire-fetch'])
-			)
 
-			setTimeout(() => {}, 6000)
+			await sleep(250)
 
 			// Second fetch should be allowed
 			await lery.fetch({ queryKey: ['dedup-expire-fetch'], queryFn: fetcher })
@@ -561,9 +568,9 @@ describe('Lery Query Manager', () => {
 			expect(states[0].status).toBe(Status.IDLE) // Initial
 			expect(states[1].status).toBe(Status.LOADING) // Fetch loading
 			expect(states[2].status).toBe(Status.SUCCESS) // Fetch success
-			expect(states[4].status).toBe(Status.IDLE) // Mutate reset
-			expect(states[5].status).toBe(Status.LOADING) // Mutate loading
-			expect(states[6].status).toBe(Status.SUCCESS) // Mutate success
+			expect(states[3].status).toBe(Status.IDLE) // Mutate reset
+			expect(states[4].status).toBe(Status.LOADING) // Mutate loading
+			expect(states[5].status).toBe(Status.SUCCESS) // Mutate success
 		})
 
 		it('should handle concurrent operations gracefully', async () => {

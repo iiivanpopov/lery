@@ -65,6 +65,8 @@ export type QueryState<T = unknown> = {
 	readonly isSuccess: boolean
 	readonly isError: boolean
 	readonly isFetched: boolean
+	readonly isStale: boolean
+	readonly lastSuccessTime: number
 }
 
 export type Subscriber<T = unknown> = (state: QueryState<T>) => void
@@ -86,6 +88,8 @@ export interface LeryOptions {
 	dedupingTime?: number
 	cacheTTL?: number
 	maxCacheSize?: number
+	refreshInterval?: number
+	staleTime?: number
 }
 
 export interface LeryConfig {
@@ -96,6 +100,8 @@ export interface LeryConfig {
 export interface FetchOptions {
 	dedupingTime?: number
 	cacheTTL?: number
+	staleTime?: number
+	refreshInterval?: number
 }
 
 export type FetchConfig<
@@ -126,6 +132,8 @@ export type MutateConfig<
 export interface QueryOptions {
 	dedupingTime?: number
 	cacheTTL?: number
+	staleTime?: number
+	refreshInterval?: number
 }
 
 export const QueryType = {

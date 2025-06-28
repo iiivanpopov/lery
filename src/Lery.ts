@@ -15,7 +15,7 @@ import { QueryType } from './types.ts'
 
 export class Lery<TDataMap extends DataMap> {
 	private cache = new Map<number, Query<any>>()
-	private cleanupTimer: any = null
+	private cleanupTimer: NodeJS.Timeout | null = null
 	readonly stopCleanup: () => void
 
 	constructor(private config: LeryConfig = {}) {
@@ -24,17 +24,45 @@ export class Lery<TDataMap extends DataMap> {
 
 	private setupCleanup() {
 		const ttl = this.config.options?.cacheTTL ?? 180000
-		this.cleanupTimer = setInterval(this.cleanup, ttl)
-		return () => this.cleanupTimer && clearInterval(this.cleanupTimer)
+		this.cleanupTimer = setInterval(() => this.cleanup(), ttl)
+		return () => {
+			if (!this.cleanupTimer) return
+
+			clearInterval(this.cleanupTimer)
+			this.cleanupTimer = null
+		}
 	}
 
 	private cleanup() {
 		const now = Date.now()
+		const toDelete: number[] = []
+
 		for (const [key, entry] of this.cache) {
-			if (now >= entry.lastFetchTime + entry.cacheTTL) {
+			const shouldDelete =
+				now >= entry.lastFetchTime + entry.cacheTTL ||
+				(entry.subscribers.size === 0 && this.isEntryStale(entry))
+
+			if (shouldDelete) toDelete.push(key)
+		}
+
+		toDelete.forEach(key => {
+			const entry = this.cache.get(key)
+			if (entry) {
+				this.cleanupEntry(entry)
 				this.cache.delete(key)
 			}
-		}
+		})
+	}
+
+	private isEntryStale(entry: Query<any>): boolean {
+		const now = Date.now()
+		const staleTime = this.config.options?.staleTime ?? 0
+		return now >= entry.lastFetchTime + staleTime
+	}
+
+	private cleanupEntry(entry: Query<any>) {
+		entry.cancel()
+		entry.reset()
 	}
 
 	private getEntry<TKey extends KeyOf<TDataMap>>(
@@ -43,11 +71,14 @@ export class Lery<TDataMap extends DataMap> {
 		options?: QueryOptions
 	) {
 		const cacheKey = serializeKey(key)
-
 		let entry = this.cache.get(cacheKey)
-		if (entry) return entry as Query<CacheValue<TDataMap, TKey>>
+
+		if (entry) {
+			return entry as Query<CacheValue<TDataMap, TKey>>
+		}
 
 		this.cleanupCache()
+
 		entry = this.newQuery(type, options)
 		this.cache.set(cacheKey, entry)
 
@@ -58,18 +89,54 @@ export class Lery<TDataMap extends DataMap> {
 		const maxSize = this.config.options?.maxCacheSize ?? 100
 		if (this.cache.size <= maxSize) return
 
-		const oldestKey = this.cache.keys().next().value
-		if (!oldestKey) return
+		const entriesToDelete: [number, Query<any>][] = []
 
-		const entry = this.cache.get(oldestKey)
-		if (!entry) return
+		for (const [key, entry] of this.cache) {
+			if (entry.subscribers.size === 0) {
+				entriesToDelete.push([key, entry])
+			}
+		}
 
-		entry.cancel()
-		entry.reset()
-		this.cache.delete(oldestKey)
+		entriesToDelete.sort(([, a], [, b]) => a.lastFetchTime - b.lastFetchTime)
+
+		const toDelete = Math.max(0, this.cache.size - maxSize)
+		const deleteCount = Math.min(toDelete, entriesToDelete.length)
+
+		for (let i = 0; i < deleteCount; i++) {
+			const entry = entriesToDelete[i]
+			if (!entry) continue
+
+			const [key, queryEntry] = entry
+			this.cleanupEntry(queryEntry)
+			this.cache.delete(key)
+		}
+
+		if (this.cache.size > maxSize) {
+			const allEntries: [number, Query<any>][] = []
+			for (const [key, entry] of this.cache) {
+				allEntries.push([key, entry])
+			}
+
+			allEntries.sort(([, a], [, b]) => a.lastFetchTime - b.lastFetchTime)
+
+			const remaining = this.cache.size - maxSize
+			for (let i = 0; i < remaining; i++) {
+				const entry = allEntries[i]
+				if (!entry) continue
+
+				const [key, queryEntry] = entry
+				this.cleanupEntry(queryEntry)
+				this.cache.delete(key)
+			}
+		}
 	}
 
 	private newQuery(type: QueryType, options?: QueryOptions) {
+		const mergedOptions = {
+			...this.config.options,
+			...options
+		}
+
 		const ttl = Math.max(
 			this.config.options?.cacheTTL ?? 0,
 			options?.cacheTTL ?? 0
@@ -78,7 +145,7 @@ export class Lery<TDataMap extends DataMap> {
 		return new Query({
 			type,
 			...this.config,
-			options: { ...this.config.options, ...options, cacheTTL: ttl }
+			options: { ...mergedOptions, cacheTTL: ttl }
 		})
 	}
 
@@ -87,14 +154,13 @@ export class Lery<TDataMap extends DataMap> {
 		callback
 	}: SubscribeConfig<TDataMap, TKey>): () => void {
 		const entry = this.getEntry<TKey>(queryKey)
-		entry.subscribers.add(callback)
+
+		const unsubscribe = entry.subscribe(callback)
+
 		callback(entry.state)
 
 		return () => {
-			entry.subscribers.delete(callback)
-			if (!entry.subscribers.size) {
-				this.cache.delete(serializeKey(queryKey))
-			}
+			unsubscribe()
 		}
 	}
 
@@ -116,7 +182,51 @@ export class Lery<TDataMap extends DataMap> {
 			QueryType.MUTATE,
 			config.options
 		)
+
 		entry.reset()
 		return entry.query(config)
+	}
+
+	invalidate(queryKey: CacheKey<TDataMap>) {
+		const cacheKey = serializeKey(queryKey)
+		const entry = this.cache.get(cacheKey)
+
+		if (entry) {
+			this.cleanupEntry(entry)
+			this.cache.delete(cacheKey)
+		}
+	}
+
+	async refetch<TKey extends KeyOf<TDataMap>>(
+		queryKey: CacheKey<TDataMap>,
+		queryFn: () => Promise<CacheValue<TDataMap, TKey>>
+	) {
+		const entry = this.getEntry<TKey>(queryKey, QueryType.FETCH)
+		return entry.query({ queryFn })
+	}
+
+	clear() {
+		for (const entry of this.cache.values()) {
+			this.cleanupEntry(entry)
+		}
+		this.cache.clear()
+	}
+
+	getCacheStats() {
+		let activeQueries = 0
+		let totalSubscribers = 0
+
+		for (const entry of this.cache.values()) {
+			if (entry.subscribers.size > 0) {
+				activeQueries++
+			}
+			totalSubscribers += entry.subscribers.size
+		}
+
+		return {
+			totalEntries: this.cache.size,
+			activeQueries,
+			totalSubscribers
+		}
 	}
 }

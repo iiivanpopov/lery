@@ -1,20 +1,72 @@
 # Roadmap
 
-## Functionality
+---
 
-- [x] Request status
-- [x] Request cancellation
-- [ ] Refresh interval
-- [ ] Interceptors
-- [ ] Query Chains (dependent queries)
-- [ ] Batching
-- [ ] Retry mechanism
+## 📦 `lery-core` (core package)
 
-## Optimizations
+### Version **0.3.x** _(Current / Alpha)_
 
-- [x] Cache TTL
-- [x] Cache key serialization
-- [x] Cache invalidation
-- [x] Deduping interval
-- [x] Race condition
-- [x] Cache size limit
+#### Core functionality
+
+- ✅ Request status (idle / loading / success / error)
+- ✅ Request cancellation via `AbortController`
+- ✅ Refresh‑interval polling
+- ✅ Cache TTL & `staleTime`
+- ✅ Key serialization (`serializeKey`)
+- ✅ Cache invalidation
+- ✅ Deduplication interval
+- ✅ Race‑condition handling
+- ✅ Cache size limit
+- ✅ Subscription API (`subscribe` / `unsubscribe`)
+- ✅ Base TypeScript typings
+
+### Version **0.4.x** _(Next minor)_
+
+#### Enhancements to core
+
+- ⬜ Memoization of key serialization
+- ⬜ Lazy cache cleanup (on‑access eviction)
+- ⬜ Minimize allocations on state updates
+- ⬜ Pass `AbortSignal` & `context` into `queryFn`
+- ⬜ `onSuccess` / `onError` / `onSettled` callbacks
+- ⬜ Support for custom `meta` in query configs
+- ⬜ Global event handlers (global `onError`, `onSuccess`)
+- ⬜ Improved refetch API (guaranteed stale → fetch)
+
+### Version **0.5.x** _(Medium‑term)_
+
+#### Type & performance polish
+
+- ⬜ Fully‑strict typings for `QueryKey`, `TKey`, `DataMap`
+- ⬜ Lazy initialization of `Query` instances
+- ⬜ Advanced GC & memory optimizations
+
+---
+
+## 🧩 `lery-plugins` (optional extensions)
+
+### Version **0.4.x** _(Concurrent with core 0.4.x)_
+
+- ⬜ **Interceptors** (request/response middleware)
+- ⬜ **Retry mechanism** (exponential backoff)
+- ⬜ **Batching** (group multiple queries)
+- ⬜ **Query chaining** (dependent queries)
+- ⬜ **Optimistic updates** (UI‑first mutations)
+- ⬜ **WebSocket / real‑time subscriptions**
+- ⬜ **Plugin registration API**
+- ⬜ **DevTools integration** (inspect cache, events, logs)
+
+---
+
+## 🎛️ `lery-react` (UI adapter package)
+
+> _Will be maintained as a separate package; core remains framework‑agnostic._
+
+### Version **0.4.x** _(Post‑core stabilization)_
+
+- ⬜ `useQuery` & `useMutation` hooks
+- ⬜ React **Suspense** support
+- ⬜ Automatic cancellation on unmount
+- ⬜ Optimistic updates via hooks
+- ⬜ Integration tips for React Router / TanStack Router
+- ⬜ Strict TypeScript typings mapped to `lery-core`
