@@ -11,7 +11,6 @@
 - ✅ Request status (idle / loading / success / error)
 - ✅ Request cancellation via `AbortController`
 - ✅ Refresh‑interval polling
-- ✅ Cache TTL & `staleTime`
 - ✅ Key serialization (`serializeKey`)
 - ✅ Cache invalidation
 - ✅ Deduplication interval
@@ -24,14 +23,11 @@
 
 #### Enhancements to core
 
-- ⬜ Memoization of key serialization
-- ⬜ Lazy cache cleanup (on‑access eviction)
-- ⬜ Minimize allocations on state updates
-- ⬜ Pass `AbortSignal` & `context` into `queryFn`
+- ✅ Lazy cache cleanup (on‑access eviction)
+- ✅ Minimize allocations on state updates
+- ✅ Pass `AbortSignal` & `context` into `queryFn`
 - ⬜ `onSuccess` / `onError` / `onSettled` callbacks
 - ⬜ Support for custom `meta` in query configs
-- ⬜ Global event handlers (global `onError`, `onSuccess`)
-- ⬜ Improved refetch API (guaranteed stale → fetch)
 
 ### Version **0.5.x** _(Medium‑term)_
 

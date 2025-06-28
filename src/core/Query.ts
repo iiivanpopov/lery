@@ -6,21 +6,25 @@ import type {
 	QueryState,
 	Subscriber
 } from './types'
+
 import { QueryType, Status } from './types'
 
 export class Query<T, E = Error> {
 	private data: T | null = null
 	private error: E | null = null
 	private status: Status = Status.IDLE
-	private isFetched: boolean = false
-	private lastSuccessTime: number = 0
-	public readonly subscribers: Set<Subscriber<T>> = new Set()
+	private isFetched = false
+	private lastSuccessTime = 0
+
+	private subscribers = new Set<Subscriber<T>>()
 	private currentExecution: QueryExecution<T> | null = null
-	private executionCounter: number = 0
+	private executionCounter = 0
 	private refreshTimer: NodeJS.Timeout | null = null
 	private lastConfig: QueryFetchConfig<T> | QueryMutateConfig<T> | null = null
 
 	constructor(private config: QueryConfig) {}
+
+	// --- Refresh Logic ---
 
 	private setupRefresh(config: QueryFetchConfig<T>) {
 		this.clearRefreshTimer()
@@ -44,34 +48,56 @@ export class Query<T, E = Error> {
 		}
 	}
 
+	// --- State Logic ---
+
 	private notify() {
 		this.subscribers.forEach(cb => cb(this.state))
 	}
 
-	private isExecutionActive = (id: number) => this.currentExecution?.id === id
+	private isExecutionActive(id: number) {
+		return this.currentExecution?.id === id
+	}
 
 	private updateState(id: number, updates: Partial<QueryState<T>>) {
-		if (!this.isExecutionActive(id)) return
-		this.forceUpdateState(updates)
+		if (this.isExecutionActive(id)) {
+			this.forceUpdateState(updates)
+		}
 	}
 
 	private forceUpdateState(updates: Partial<QueryState<T>>) {
-		if (updates.data !== undefined) this.data = updates.data
-		if (updates.error !== undefined) this.error = updates.error as E
-		if (updates.status !== undefined) this.status = updates.status
-		if (updates.isFetched !== undefined) this.isFetched = updates.isFetched
+		let hasChanged = false
 
-		this.notify()
+		if (updates.data !== undefined && updates.data !== this.data) {
+			this.data = updates.data
+			hasChanged = true
+		}
+
+		if (updates.error !== undefined && updates.error !== this.error) {
+			this.error = updates.error as E
+			hasChanged = true
+		}
+
+		if (updates.status !== undefined && updates.status !== this.status) {
+			this.status = updates.status
+			hasChanged = true
+		}
+
+		if (
+			updates.isFetched !== undefined &&
+			updates.isFetched !== this.isFetched
+		) {
+			this.isFetched = updates.isFetched
+			hasChanged = true
+		}
+
+		if (hasChanged) this.notify()
 	}
 
-	private isStale(config: QueryFetchConfig<T> | QueryMutateConfig<T>): boolean {
-		if (this.config.type === QueryType.MUTATE) {
-			return true
-		}
+	// --- Staleness & Deduping ---
 
-		if (!this.isFetched || this.data === null) {
-			return true
-		}
+	private isStale(config: QueryFetchConfig<T> | QueryMutateConfig<T>): boolean {
+		if (this.config.type === QueryType.MUTATE) return true
+		if (!this.isFetched || this.data === null) return true
 
 		const options = { ...this.config.options, ...config.options }
 		const staleTime = options.staleTime ?? 0
@@ -79,8 +105,7 @@ export class Query<T, E = Error> {
 		if (staleTime === 0) return true
 		if (staleTime === Infinity) return false
 
-		const now = Date.now()
-		return now >= this.lastSuccessTime + staleTime
+		return Date.now() >= this.lastSuccessTime + staleTime
 	}
 
 	private shouldFetch(
@@ -100,18 +125,17 @@ export class Query<T, E = Error> {
 		return this.isStale(config)
 	}
 
+	// --- Public API ---
+
 	reset() {
 		this.cancel()
-
 		this.currentExecution = null
 		this.executionCounter = 0
-
 		this.data = null
 		this.error = null
 		this.status = Status.IDLE
 		this.isFetched = false
 		this.lastSuccessTime = 0
-
 		this.notify()
 	}
 
@@ -137,14 +161,12 @@ export class Query<T, E = Error> {
 
 		if (!this.shouldFetch(config)) {
 			if (this.currentExecution) return this.currentExecution.promise
-
 			if (this.data !== null && this.status === Status.SUCCESS) {
 				return Promise.resolve(this.data)
 			}
 		}
 
 		const now = Date.now()
-
 		this.currentExecution?.controller.abort()
 
 		const id = ++this.executionCounter
@@ -155,7 +177,7 @@ export class Query<T, E = Error> {
 			this.config.type === QueryType.FETCH &&
 			this.subscribers.size > 0
 		) {
-			this.setupRefresh(config)
+			this.setupRefresh(config as QueryFetchConfig<T>)
 		}
 
 		this.forceUpdateState({
@@ -174,12 +196,12 @@ export class Query<T, E = Error> {
 	private async executeQuery(
 		config: QueryFetchConfig<T> | QueryMutateConfig<T>,
 		id: number,
-		signal: AbortSignal
+		internalSignal: AbortSignal
 	): Promise<T> {
-		try {
-			const data = await config.queryFn()
+		const signal = config.signal ?? internalSignal
 
-			const successTime = Date.now()
+		try {
+			const data = await config.queryFn({ signal, context: config.context })
 
 			this.updateState(id, {
 				data,
@@ -189,14 +211,12 @@ export class Query<T, E = Error> {
 			})
 
 			if (this.isExecutionActive(id)) {
-				this.lastSuccessTime = successTime
+				this.lastSuccessTime = Date.now()
 			}
 
 			return data
 		} catch (error) {
-			if (signal.aborted) {
-				throw new Error('Query aborted')
-			}
+			if (signal.aborted) throw new Error('Query aborted')
 
 			const normalized =
 				error instanceof Error ? error : new Error(String(error))
@@ -226,7 +246,6 @@ export class Query<T, E = Error> {
 
 		return () => {
 			this.subscribers.delete(cb)
-
 			if (this.subscribers.size === 0) {
 				this.clearRefreshTimer()
 			}
@@ -239,9 +258,7 @@ export class Query<T, E = Error> {
 	}
 
 	async refetch(): Promise<T> {
-		if (!this.lastConfig) {
-			throw new Error('No previous config to refetch with')
-		}
+		if (!this.lastConfig) throw new Error('No previous config to refetch with')
 
 		const originalTime = this.lastSuccessTime
 		this.lastSuccessTime = 0
@@ -254,6 +271,8 @@ export class Query<T, E = Error> {
 		}
 	}
 
+	// --- Getters ---
+
 	get lastFetchTime() {
 		return this.currentExecution?.timestamp ?? this.lastSuccessTime
 	}
@@ -264,5 +283,9 @@ export class Query<T, E = Error> {
 
 	get staleTime() {
 		return this.config.options?.staleTime ?? 0
+	}
+
+	get subscribersCount() {
+		return this.subscribers.size
 	}
 }
