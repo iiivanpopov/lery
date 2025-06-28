@@ -1,3 +1,4 @@
+import { fnv1aHash } from './hash.ts'
 import { Query } from './Query.ts'
 import type {
 	CacheKey,
@@ -15,12 +16,12 @@ import type {
 import { QueryType } from './types.ts'
 
 export class Lery<TDataMap extends DataMap> {
-	private cache = new Map<string, Query<any>>()
+	private cache = new Map<number, Query<any>>()
 
 	constructor(private config?: LeryConfig) {}
 
-	private serializeKey(key: CacheKey<TDataMap>): string {
-		return JSON.stringify(key)
+	private serializeKey(key: CacheKey<TDataMap>): number {
+		return fnv1aHash(key.join('\x1F'))
 	}
 
 	private retrieveEntry<TKey extends KeyOf<TDataMap>>(
@@ -49,7 +50,7 @@ export class Lery<TDataMap extends DataMap> {
 		const entry = this.retrieveEntry<TKey>(config.queryKey)
 
 		entry.subscribers.add(config.callback)
-		config.callback(entry.getState())
+		config.callback(entry.state)
 
 		return () => {
 			entry.subscribers.delete(config.callback)
@@ -75,9 +76,9 @@ export class Lery<TDataMap extends DataMap> {
 		return entry.query(config)
 	}
 
-	getState<TKey extends KeyOf<TDataMap>>(
+	state<TKey extends KeyOf<TDataMap>>(
 		key: CacheKey<TDataMap>
 	): QueryState<CacheValue<TDataMap, TKey>> {
-		return this.retrieveEntry<TKey>(key).getState()
+		return this.retrieveEntry<TKey>(key).state
 	}
 }

@@ -49,7 +49,7 @@ export type CacheKey<TDataMap extends DataMap> = QueryKey<TDataMap>
 export type CacheMap<
 	TDataMap extends DataMap,
 	TKey extends KeyOf<TDataMap>
-> = Map<string, Query<CacheValue<TDataMap, TKey>>>
+> = Map<number, Query<CacheValue<TDataMap, TKey>>>
 
 // ==============================
 // Query State & Subscription

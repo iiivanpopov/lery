@@ -47,7 +47,7 @@ describe('Lery Query Manager', () => {
 
 			unsubscribe()
 
-			const state = lery.getState(['subscription-cleanup'])
+			const state = lery.state(['subscription-cleanup'])
 			expect(state.status).toBe(Status.IDLE)
 			expect(state.data).toBeNull()
 		})
@@ -249,7 +249,7 @@ describe('Lery Query Manager', () => {
 			})
 			await wait()
 
-			const state = lery.getState(['fetch-no-subscribers'])
+			const state = lery.state(['fetch-no-subscribers'])
 			expect(state.status).toBe(Status.SUCCESS)
 			expect(state.data).toBe('cached-data')
 		})
@@ -531,8 +531,8 @@ describe('Lery Query Manager', () => {
 	// ============================================================================
 
 	describe('State Management', () => {
-		it('should provide accurate state through getState method', () => {
-			const initialState = lery.getState(['state-check'])
+		it('should provide accurate state through state method', () => {
+			const initialState = lery.state(['state-check'])
 
 			expect(initialState).toMatchObject({
 				status: Status.IDLE,
@@ -596,7 +596,7 @@ describe('Lery Query Manager', () => {
 			await Promise.all(promises.filter(Boolean))
 
 			// Verify final state
-			const finalState = lery.getState(['concurrent'])
+			const finalState = lery.state(['concurrent'])
 			expect(finalState.status).toBe(Status.SUCCESS)
 			expect(finalState.data).toBeTruthy()
 		})
@@ -645,7 +645,7 @@ describe('Lery Query Manager', () => {
 			unsubscribers.forEach(unsub => unsub())
 
 			// Should not throw and cache should be cleaned
-			const state = lery.getState(['rapid-cycle'])
+			const state = lery.state(['rapid-cycle'])
 			expect(state.status).toBe(Status.IDLE)
 		})
 
@@ -661,8 +661,8 @@ describe('Lery Query Manager', () => {
 			})
 			await wait()
 
-			const stateA = lery.getState(['key-a'])
-			const stateB = lery.getState(['key-b'])
+			const stateA = lery.state(['key-a'])
+			const stateB = lery.state(['key-b'])
 
 			expect(stateA.status).toBe(Status.SUCCESS)
 			expect(stateA.data).toBe('data-a')

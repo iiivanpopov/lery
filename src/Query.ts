@@ -20,7 +20,8 @@ export class Query<T, E = Error> {
 	constructor(private config: QueryConfig) {}
 
 	private notify = () => {
-		const state = this.getState()
+		if (this.subscribers.size === 0) return
+		const state = this.state
 		this.subscribers.forEach(cb => cb(state))
 	}
 
@@ -38,12 +39,14 @@ export class Query<T, E = Error> {
 		return true
 	}
 
-	private forceUpdateState(updates: Partial<QueryState<T>>) {
+	private forceUpdateState(updates: Partial<QueryState<T>>): true {
 		if (updates.data !== undefined) this.data = updates.data
 		if (updates.error !== undefined) this.error = updates.error as E
 		if (updates.status !== undefined) this.status = updates.status
 		if (updates.isFetched !== undefined) this.isFetched = updates.isFetched
+
 		this.notify()
+		return true
 	}
 
 	reset() {
@@ -57,7 +60,7 @@ export class Query<T, E = Error> {
 		this.notify()
 	}
 
-	getState(): QueryState<T> {
+	get state(): QueryState<T> {
 		return {
 			data: this.data,
 			error: this.error,
@@ -110,8 +113,6 @@ export class Query<T, E = Error> {
 		try {
 			const data = await config.queryFn()
 
-			if (!this.isExecutionActive(id)) return data
-
 			this.updateState(id, {
 				data,
 				error: null,
@@ -121,18 +122,18 @@ export class Query<T, E = Error> {
 
 			return data
 		} catch (error) {
-			if (signal.aborted) throw new Error('Query execution aborted')
+			if (signal.aborted) {
+				throw new Error('Query aborted')
+			}
 
 			const normalized =
 				error instanceof Error ? error : new Error(String(error))
 
-			if (this.isExecutionActive(id)) {
-				this.updateState(id, {
-					error: normalized as E,
-					status: Status.ERROR,
-					isFetched: true
-				})
-			}
+			this.updateState(id, {
+				error: normalized as E,
+				status: Status.ERROR,
+				isFetched: true
+			})
 
 			throw normalized
 		} finally {
