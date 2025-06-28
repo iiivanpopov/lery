@@ -1,3 +1,5 @@
+import type { Lery } from './Lery'
+
 export const Status = {
 	IDLE: 'IDLE',
 	LOADING: 'LOADING',
@@ -53,17 +55,44 @@ export interface LeryConfig {
 	options?: LeryOptions
 }
 
-export interface QueryConfig {
+export interface QueryConfig<
+	T extends DataMap = any,
+	C = unknown,
+	M = unknown
+> {
 	type: QueryType
 	options?: QueryOptions
+	plugins: Plugin<T, C, M>[]
 }
 
-export interface QueryContext<C = unknown> {
+export interface Plugin<TDataMap extends DataMap, C = unknown, M = unknown> {
+	onInit?: (lery: Lery<TDataMap>) => void
+	onBeforeQuery?: <T>(
+		config: QueryBaseConfig<T, C, M>
+	) => QueryBaseConfig<T, C, M> | Promise<QueryBaseConfig<T, C, M>>
+	onAfterQuery?: <T>(
+		result: T,
+		config: QueryBaseConfig<T, C, M>
+	) => T | Promise<T>
+	onSuccess?: <T>(result: T, config: QueryBaseConfig<T, C, M>) => void
+	onError?: <T>(error: unknown, config: QueryBaseConfig<T, C, M>) => void
+	onFinish?: <T>(result: T | unknown) => void
+}
+
+export interface QueryContext<C> {
 	signal?: AbortSignal
 	context?: C
 }
 
-export type QueryFn<T, C = unknown> = (ctx: QueryContext<C>) => Promise<T>
+export interface QueryMeta<M> {
+	meta?: M
+}
+
+export type QueryFn<TData, C, M> = (args: {
+	signal: AbortSignal
+	context: C
+	meta: M
+}) => Promise<TData>
 
 export interface Hooks<T> {
 	onSuccess?: (state: QueryState<T>) => void
@@ -71,8 +100,10 @@ export interface Hooks<T> {
 	onFinish?: (state: QueryState<T>) => void
 }
 
-export interface QueryBaseConfig<T, C = unknown> extends QueryContext<C> {
-	queryFn: QueryFn<T, C>
+export interface QueryBaseConfig<T, C = unknown, M = unknown>
+	extends QueryContext<C>,
+		QueryMeta<M> {
+	queryFn: QueryFn<T, C, M>
 	options?: QueryOptions
 	hooks?: Hooks<T>
 }
@@ -80,24 +111,24 @@ export interface QueryBaseConfig<T, C = unknown> extends QueryContext<C> {
 export interface QueryActionConfig<
 	TDataMap extends DataMap,
 	TKey extends keyof TDataMap,
-	C = unknown
-> extends QueryContext<C> {
+	C,
+	M
+> extends QueryBaseConfig<TDataMap[TKey], C, M> {
 	queryKey: QueryKeyFor<TDataMap, TKey>
-	queryFn: QueryFn<TDataMap[TKey], C>
-	options?: QueryOptions
-	hooks?: Hooks<TDataMap[TKey]>
 }
 
 export type FetchConfig<
 	TDataMap extends DataMap,
 	TKey extends keyof TDataMap,
-	C = unknown
-> = QueryActionConfig<TDataMap, TKey, C>
+	C,
+	M
+> = QueryActionConfig<TDataMap, TKey, C, M>
 export type MutateConfig<
 	TDataMap extends DataMap,
 	TKey extends keyof TDataMap,
-	C = unknown
-> = QueryActionConfig<TDataMap, TKey, C>
+	C,
+	M
+> = QueryActionConfig<TDataMap, TKey, C, M>
 
 export interface SubscribeConfig<
 	TDataMap extends DataMap,

@@ -8,7 +8,7 @@ import type {
 
 import { QueryType, Status } from './types'
 
-export class Query<T, E = Error> {
+export class Query<T, C = unknown, M = unknown, E = Error> {
 	private data: T | null = null
 	private error: E | null = null
 	private status: Status = Status.IDLE
@@ -19,13 +19,14 @@ export class Query<T, E = Error> {
 	private currentExecution: QueryExecution<T> | null = null
 	private executionCounter = 0
 	private refreshTimer: NodeJS.Timeout | null = null
-	private lastConfig: QueryBaseConfig<T> | null = null
+	private lastConfig: QueryBaseConfig<T, C, M> | null = null
+	private lastContext: C | null = null
 
-	constructor(private config: QueryConfig) {}
+	constructor(private config: QueryConfig<any, C, M>) {}
 
 	// --- Refresh Logic ---
 
-	private setupRefresh(config: QueryBaseConfig<T>) {
+	private setupRefresh(config: QueryBaseConfig<T, C, M>) {
 		this.clearRefreshTimer()
 
 		const interval = this.config.options?.refreshInterval
@@ -96,7 +97,7 @@ export class Query<T, E = Error> {
 
 	// --- Staleness & Deduping ---
 
-	private isStale(config: QueryBaseConfig<T>): boolean {
+	private isStale(config: QueryBaseConfig<T, C, M>): boolean {
 		if (this.config.type === QueryType.MUTATE) return true
 		if (!this.isFetched || this.data === null) return true
 
@@ -109,7 +110,7 @@ export class Query<T, E = Error> {
 		return Date.now() >= this.lastSuccessTime + staleTime
 	}
 
-	private shouldFetch(config: QueryBaseConfig<T>): boolean {
+	private shouldFetch(config: QueryBaseConfig<T, C, M>): boolean {
 		if (this.currentExecution) {
 			const now = Date.now()
 			const options = { ...this.config.options, ...config.options }
@@ -155,8 +156,9 @@ export class Query<T, E = Error> {
 		}
 	}
 
-	async query(config: QueryBaseConfig<T>): Promise<T> {
+	async query(config: QueryBaseConfig<T, C, M>): Promise<T> {
 		this.lastConfig = config
+		this.lastContext = config.context ?? null
 
 		if (!this.shouldFetch(config)) {
 			if (this.currentExecution) return this.currentExecution.promise
@@ -176,7 +178,7 @@ export class Query<T, E = Error> {
 			this.config.type === QueryType.FETCH &&
 			this.subscribers.size > 0
 		) {
-			this.setupRefresh(config as QueryBaseConfig<T>)
+			this.setupRefresh(config as QueryBaseConfig<T, C, M>)
 		}
 
 		this.forceUpdateState({
@@ -193,14 +195,24 @@ export class Query<T, E = Error> {
 	}
 
 	private async executeQuery(
-		config: QueryBaseConfig<T>,
+		config: QueryBaseConfig<T, C, M>,
 		id: number,
 		internalSignal: AbortSignal
 	): Promise<T> {
 		const signal = config.signal ?? internalSignal
 
+		for (const plugin of this.config.plugins) {
+			if (plugin.onBeforeQuery) {
+				config = await plugin.onBeforeQuery(config)
+			}
+		}
+
 		try {
-			const data = await config.queryFn({ signal, context: config.context })
+			const data = await config.queryFn({
+				signal,
+				context: (config.context ?? this.lastContext)!,
+				meta: config.meta ?? (undefined as M)
+			})
 
 			const isUpdated = this.updateState(id, {
 				data,
@@ -217,9 +229,17 @@ export class Query<T, E = Error> {
 				config.hooks.onSuccess(this.state)
 			}
 
+			for (const plugin of this.config.plugins) {
+				plugin.onSuccess?.(data, config)
+			}
+
 			return data
 		} catch (error) {
 			if (signal.aborted) throw new Error('Query aborted')
+
+			for (const plugin of this.config.plugins) {
+				plugin.onError?.(error, config)
+			}
 
 			const normalized =
 				error instanceof Error ? error : new Error(String(error))
@@ -241,6 +261,10 @@ export class Query<T, E = Error> {
 			}
 			if (this.currentExecution?.id === id) {
 				this.currentExecution = null
+			}
+
+			for (const plugin of this.config.plugins) {
+				plugin.onFinish?.(this.state)
 			}
 		}
 	}

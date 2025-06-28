@@ -4,6 +4,7 @@ import type {
 	FetchConfig,
 	LeryConfig,
 	MutateConfig,
+	Plugin,
 	QueryKeyFor,
 	QueryOptions,
 	Subscriber
@@ -13,6 +14,12 @@ import { serializeKey } from './utils'
 
 export class Lery<TDataMap extends DataMap> {
 	private cache = new Map<number, Query<any>>()
+	private plugins: Plugin<TDataMap>[] = []
+
+	use(plugin: Plugin<TDataMap>) {
+		this.plugins.push(plugin)
+		plugin.onInit?.(this)
+	}
 
 	constructor(private config: LeryConfig = {}) {}
 
@@ -101,7 +108,8 @@ export class Lery<TDataMap extends DataMap> {
 		return new Query({
 			type,
 			...this.config,
-			options: { ...mergedOptions }
+			options: { ...mergedOptions },
+			plugins: this.plugins
 		})
 	}
 
@@ -126,10 +134,10 @@ export class Lery<TDataMap extends DataMap> {
 		return this.getEntry<TKey>(key).state
 	}
 
-	fetch<TKey extends keyof TDataMap>(
-		config: FetchConfig<TDataMap, TKey>
+	fetch<TKey extends keyof TDataMap, C = unknown, M = unknown>(
+		config: FetchConfig<TDataMap, TKey, C, M>
 	): Promise<TDataMap[TKey]> {
-		const entry = this.getEntry<TKey>(
+		const entry = this.getEntry<TKey, C, M>(
 			config.queryKey,
 			QueryType.FETCH,
 			config.options
@@ -137,10 +145,10 @@ export class Lery<TDataMap extends DataMap> {
 		return entry.query(config)
 	}
 
-	mutate<TKey extends keyof TDataMap>(
-		config: MutateConfig<TDataMap, TKey>
+	mutate<TKey extends keyof TDataMap, C = unknown, M = unknown>(
+		config: MutateConfig<TDataMap, TKey, C, M>
 	): Promise<TDataMap[TKey]> {
-		const entry = this.getEntry<TKey>(
+		const entry = this.getEntry<TKey, C, M>(
 			config.queryKey,
 			QueryType.MUTATE,
 			config.options
@@ -149,22 +157,22 @@ export class Lery<TDataMap extends DataMap> {
 		return entry.query(config)
 	}
 
-	private getEntry<TKey extends keyof TDataMap>(
+	private getEntry<TKey extends keyof TDataMap, C = unknown, M = unknown>(
 		key: QueryKeyFor<TDataMap, TKey>,
 		type: QueryType = QueryType.FETCH,
 		options?: QueryOptions
-	): Query<TDataMap[TKey]> {
+	): Query<TDataMap[TKey], C, M> {
 		const cacheKey = serializeKey(key)
 		let entry = this.cache.get(cacheKey)
 
-		if (entry) return entry as Query<TDataMap[TKey]>
+		if (entry) return entry as Query<TDataMap[TKey], C, M>
 
 		this.cleanupCache()
 
 		entry = this.newQuery(type, options)
 		this.cache.set(cacheKey, entry)
 
-		return entry as Query<TDataMap[TKey]>
+		return entry as Query<TDataMap[TKey], C, M>
 	}
 
 	invalidate<TKey extends keyof TDataMap>(
@@ -184,7 +192,10 @@ export class Lery<TDataMap extends DataMap> {
 		queryFn: () => Promise<TDataMap[TKey]>
 	) {
 		const entry = this.getEntry<TKey>(queryKey, QueryType.FETCH)
-		return entry.query({ queryFn })
+		return entry.query({
+			queryFn,
+			context: undefined
+		})
 	}
 
 	clear() {

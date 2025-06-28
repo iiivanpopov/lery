@@ -35,7 +35,7 @@
 - ✅ Cache TTL
 - ✅ Fully‑strict typings for `QueryKey`, `TKey`, `DataMap`
 - ✅ GC & memory optimizations
-- ⬜ Support for custom `meta` in query configs (plugins)
+- ✅ Support for custom `meta` in query configs (plugins)
 
 ---
 
