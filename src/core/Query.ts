@@ -20,7 +20,7 @@ export class Query<T, C = unknown, M = unknown, E = Error> {
 	private executionCounter = 0
 	private refreshTimer: NodeJS.Timeout | null = null
 	private lastConfig: QueryBaseConfig<T, C, M> | null = null
-	private lastContext: C | null = null
+	lastContext: C | null = null
 
 	constructor(private config: QueryConfig<any, C, M>) {}
 
@@ -178,7 +178,7 @@ export class Query<T, C = unknown, M = unknown, E = Error> {
 			this.config.type === QueryType.FETCH &&
 			this.subscribers.size > 0
 		) {
-			this.setupRefresh(config as QueryBaseConfig<T, C, M>)
+			this.setupRefresh(config)
 		}
 
 		this.forceUpdateState({
@@ -200,6 +200,8 @@ export class Query<T, C = unknown, M = unknown, E = Error> {
 		internalSignal: AbortSignal
 	): Promise<T> {
 		const signal = config.signal ?? internalSignal
+		const context = (config.context ?? this.lastContext) as C
+		const meta = config.meta as M
 
 		for (const plugin of this.config.plugins) {
 			if (plugin.onBeforeQuery) {
@@ -210,8 +212,8 @@ export class Query<T, C = unknown, M = unknown, E = Error> {
 		try {
 			const data = await config.queryFn({
 				signal,
-				context: (config.context ?? this.lastContext)!,
-				meta: config.meta ?? (undefined as M)
+				context,
+				meta
 			})
 
 			const isUpdated = this.updateState(id, {

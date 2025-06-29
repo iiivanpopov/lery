@@ -194,7 +194,7 @@ export class Lery<TDataMap extends DataMap> {
 		const entry = this.getEntry<TKey>(queryKey, QueryType.FETCH)
 		return entry.query({
 			queryFn,
-			context: undefined
+			context: entry.lastContext
 		})
 	}
 
@@ -203,21 +203,5 @@ export class Lery<TDataMap extends DataMap> {
 			this.cleanupEntry(entry)
 		}
 		this.cache.clear()
-	}
-
-	getCacheStats() {
-		let activeQueries = 0
-		let totalSubscribers = 0
-
-		for (const entry of this.cache.values()) {
-			if (entry.subscribersCount > 0) activeQueries++
-			totalSubscribers += entry.subscribersCount
-		}
-
-		return {
-			totalEntries: this.cache.size,
-			activeQueries,
-			totalSubscribers
-		}
 	}
 }

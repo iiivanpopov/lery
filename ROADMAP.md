@@ -37,20 +37,7 @@
 - ✅ GC & memory optimizations
 - ✅ Support for custom `meta` in query configs (plugins)
 
----
-
-## 🧩 `lery-plugins` (optional extensions)
-
-### Version **0.4.x** _(Concurrent with core 0.4.x)_
-
-- ⬜ **Interceptors** (request/response middleware)
-- ⬜ **Retry mechanism** (exponential backoff)
-- ⬜ **Batching** (group multiple queries)
-- ⬜ **Query chaining** (dependent queries)
-- ⬜ **Optimistic updates** (UI‑first mutations)
-- ⬜ **WebSocket / real‑time subscriptions**
-- ⬜ **Plugin registration API**
-- ⬜ **DevTools integration** (inspect cache, events, logs)
+- ⬜ Some tests and showcase
 
 ---
 
