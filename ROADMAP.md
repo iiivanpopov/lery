@@ -33,23 +33,11 @@
 #### Type & performance polish
 
 - ✅ Cache TTL
-- ✅ Fully‑strict typings for `QueryKey`, `TKey`, `DataMap`
-- ✅ GC & memory optimizations
-- ✅ Support for custom `meta` in query configs (plugins)
+- ✅ Fully‑strict typings
+- ✅ Memory optimizations
+- ✅ **Plugin registration API**
 
+### Version **0.6.x** _(Long‑term)_
+
+- ⬜ **Optimistic updates** (UI‑first mutations)
 - ⬜ Some tests and showcase
-
----
-
-## 🎛️ `lery-react` (UI adapter package)
-
-> _Will be maintained as a separate package; core remains framework‑agnostic._
-
-### Version **0.4.x** _(Post‑core stabilization)_
-
-- ⬜ `useQuery` & `useMutation` hooks
-- ⬜ React **Suspense** support
-- ⬜ Automatic cancellation on unmount
-- ⬜ Optimistic updates via hooks
-- ⬜ Integration tips for React Router / TanStack Router
-- ⬜ Strict TypeScript typings mapped to `lery-core`
